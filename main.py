@@ -1,5 +1,5 @@
 import os
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import e2e
 import load_data
 import torch
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import wandb
 
-batch_size = 128
+batch_size = 10
 channel,im_size,num_classes,class_names,x_train,x_test,testloader,trainloader,valoader,=load_data.get_dataset('MNIST',"data",batch_size)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -19,7 +19,7 @@ model = e2e.E2E(pinv=False, num_measurements=122, img_size=(32, 32), trainable=T
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=5e-4)
 
-num_epochs = 500
+num_epochs = 10
 wandb.init(name="Prueba Final VScode",project="SPC_E2E_MNIST", config={
     "num_epochs": num_epochs})
 
@@ -54,13 +54,13 @@ for epoch in range(num_epochs):
       data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
       data_loop_val.set_postfix(loss=val_loss, ssim=val_ssim, psnr=val_psnr)
 
-#   if (epoch + 1) % 10 == 0:
-#     fig, axis = plt.subplots(1, 2)
-#     axis[0].imshow(y[0].squeeze().squeeze().cpu().detach().numpy())
-#     aux = x_hat[0].squeeze().squeeze().cpu().detach().numpy()
-#     axis[1].imshow(aux)
-#     plt.show()
-#     wandb_img = wandb.Image(fig)
+  if (epoch + 1) % 10 == 0:
+    fig, axis = plt.subplots(1, 2)
+    axis[0].imshow(y[0].squeeze().squeeze().cpu().detach().numpy())
+    aux = x_hat[0].squeeze().squeeze().cpu().detach().numpy()
+    axis[1].imshow(aux)
+    # plt.show()
+    wandb_img = wandb.Image(fig)
 
   wandb.log({"epoch": epoch,
              "train_loss": train_loss.item(),
@@ -68,7 +68,7 @@ for epoch in range(num_epochs):
              "train_ssim": train_ssim.item(),
              "val_ssim": val_ssim.item(),
              "train_psnr": train_psnr.item(),
-             "val_psnr": val_psnr.item()})
-            #  "image": wandb_img if (epoch + 1) % 10 == 0 else None})
+             "val_psnr": val_psnr.item(),
+             "image": wandb_img if (epoch + 1) % 10  == 0 else None})
 
 wandb.finish()
