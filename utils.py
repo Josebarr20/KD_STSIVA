@@ -229,17 +229,6 @@ def save_reconstructed_images(imgs, recons, num_img, pad, path, name, PSNR, SSIM
 
     return grid, psnr_imgs, ssim_imgs
 
-
-def hadamard(n):
-
-    if n == 1:
-        return np.array([[1]])
-
-    else:
-        h = hadamard(n // 2)
-        return np.block([[h, h], [h, -h]])
-
-
 def save_metrics(save_path):
 
     images_path = save_path + "/images"
@@ -252,7 +241,3 @@ def save_metrics(save_path):
     os.makedirs(metrics_path, exist_ok=True)
 
     return images_path, model_path, metrics_path
-
-def print_dict(dictionary):
-    for key, value in dictionary.items():
-        print(f"{key}: {value}")

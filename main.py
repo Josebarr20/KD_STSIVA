@@ -6,14 +6,13 @@ from torchmetrics.image import StructuralSimilarityIndexMeasure, PeakSignalNoise
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import wandb
-from e2e import E2E
+from models import CI_model
 from utils import (get_dataset, 
                    set_seed, 
                    save_metrics, 
                    AverageMeter, 
                    save_coded_apertures, 
                    save_reconstructed_images)
-
 
 set_seed(42)
 
@@ -26,19 +25,28 @@ SSIM = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
 PSNR = PeakSignalNoiseRatio(data_range=1.0).to(device)
 MSE_LOSS = nn.MSELoss()
 
-num_epochs = 250
+num_epochs = 500
 batch_size = 128
-_, im_size, _, _, _, _, testloader, trainloader, valoader = get_dataset(
-  "MNIST", "data", batch_size, 42)
+_, im_size, _, _, _, _, testloader, trainloader, valoader = get_dataset("MNIST", "data", batch_size, 42)
+
 im_size = (1, im_size[-2], im_size[-1])
 
+model = CI_model(input_size=im_size,
+        snapshots=int(0.12 * 32 * 32),
+        n_stages=7,
+        device=device,
+        SystemLayer="SPC",
+        real="hadamard",
+        sampling_pattern=None,
+        base_channels=32,
+        decoder="unet",
+        acc_factor=None).to(device)
 
-model = E2E(pinv=False, num_measurements=122, img_size=(32, 32), trainable=True, num_channels=1).to(device)
 MSE_LOSS = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=5e-4)
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="KD_MNIST", name="prueba 1",config={"num_epochs": num_epochs})
+wandb.init(project="KD_MNIST", name="prueba 2",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
@@ -51,7 +59,7 @@ for epoch in range(num_epochs):
   for _, train_data in data_loop_train:
     x, _ = train_data
     x = x.to(device)
-    x_hat = model(x).to(device)
+    x_hat, _, _, _ = model(x)
     loss_train = MSE_LOSS(x_hat, x)
 
     optimizer.zero_grad()
@@ -75,7 +83,7 @@ for epoch in range(num_epochs):
     for _, val_data in data_loop_val:
       x, _ = val_data
       x = x.to(device)
-      x_hat = model(x).to(device)
+      x_hat, _, _, _ = model(x)
       loss_val = MSE_LOSS(x_hat, x)
       val_loss.update(loss_val.item())
       val_ssim.update(SSIM(x_hat, x).item())
@@ -104,7 +112,16 @@ test_loss = AverageMeter()
 test_ssim = AverageMeter()
 test_psnr = AverageMeter()  
 
-model = E2E(pinv=False, num_measurements=122, img_size=(32, 32), trainable=False, num_channels=1).to(device)
+model = CI_model(input_size=im_size,
+        snapshots=int(0.12 * 32 * 32),
+        n_stages=7,
+        device=device,
+        SystemLayer="SPC",
+        real="hadamard",
+        sampling_pattern=None,
+        base_channels=32,
+        decoder="unet",
+        acc_factor=None).to(device)
 
 with torch.no_grad():
   model.eval()
@@ -112,7 +129,7 @@ with torch.no_grad():
   for _, test_data in data_loop_test:
     x, _ = test_data
     x = x.to(device)
-    x_hat = model(x).to(device)
+    x_hat, _, _, _ = model(x)
     loss_test = MSE_LOSS(x_hat, x)
     test_loss.update(loss_test.item())
     test_ssim.update(SSIM(x_hat, x).item())
