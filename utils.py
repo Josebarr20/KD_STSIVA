@@ -13,7 +13,7 @@ import copy
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
-    def _init_(self):
+    def __init__(self):
         self.reset()
 
     def reset(self):

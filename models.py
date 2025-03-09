@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from optics import OpticsSPC
+from spc import OpticsSPC
 
 class Proximal_Mapping(nn.Module):
     def __init__(self, channel, device, multiplier: int = 1.0):
@@ -182,8 +182,8 @@ def double_conv(in_channels, out_channels):
     )
 
 class UNet(nn.Module):
-    def _init_(self, n_channels, bilinear=False, divisor:int=4):
-        super(UNet, self)._init_()
+    def __init__(self, n_channels, bilinear=False, divisor:int=4):
+        super(UNet, self).__init__()
         self.n_channels = n_channels
         self.bilinear = bilinear
 
@@ -216,8 +216,8 @@ class UNet(nn.Module):
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
-    def _init_(self, in_channels, out_channels, mid_channels=None):
-        super()._init_()
+    def __init__(self, in_channels, out_channels, mid_channels=None):
+        super().__init__()
         if not mid_channels:
             mid_channels = out_channels
         self.double_conv = nn.Sequential(
@@ -236,8 +236,8 @@ class DoubleConv(nn.Module):
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def _init_(self, in_channels, out_channels):
-        super()._init_()
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
             DoubleConv(in_channels, out_channels)
@@ -250,8 +250,8 @@ class Down(nn.Module):
 class Up(nn.Module):
     """Upscaling then double conv"""
 
-    def _init_(self, in_channels, out_channels, bilinear=True):
-        super()._init_()
+    def __init__(self, in_channels, out_channels, bilinear=True):
+        super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
@@ -277,8 +277,8 @@ class Up(nn.Module):
 
 
 class OutConv(nn.Module):
-    def _init_(self, in_channels, out_channels):
-        super(OutConv, self)._init_()
+    def __init__(self, in_channels, out_channels):
+        super(OutConv, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x):

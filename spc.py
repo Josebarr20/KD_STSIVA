@@ -53,6 +53,25 @@ def backward_spc(y: torch.Tensor, H: torch.Tensor, pinv= False) -> torch.Tensor:
     x = x/x.max() # normalizetion step to avoid numerical issues
     return x
 
+class SPC(nn.Module):
+    def __init__(self, pinv:bool = False, num_measurements:int=100, img_size:tuple=(32,32), trainable:bool=True):
+        super(SPC, self).__init__()
+        self.pinv = pinv
+        M, N = img_size
+        H = torch.randn(num_measurements, M*N)
+        self.H = nn.Parameter(H, requires_grad=trainable)
+
+    def forward(self, x: torch.Tensor) -> torch:
+        y = forward_spc(x, self.H)
+        x_hat = backward_spc(y, self.H, self.pinv)
+        return x_hat
+
+    def forward_pass(self, x: torch.Tensor) -> torch.Tensor:
+        return forward_spc(x, self.H)
+
+    def backward_pass(self, y: torch.Tensor) -> torch.Tensor:
+        return backward_spc(y, self.H, self.pinv)
+
 class OpticsSPC(nn.Module):
     def __init__(self, input_size: tuple, snapshots: int, real: str, snr: int):
         super(OpticsSPC, self).__init__()
