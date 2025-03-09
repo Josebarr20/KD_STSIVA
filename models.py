@@ -1,6 +1,44 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from optics import OpticsSPC
+
+class Proximal_Mapping(nn.Module):
+    def __init__(self, channel, device, multiplier: int = 1.0):
+        super(Proximal_Mapping, self).__init__()
+
+        self.conv1 = nn.Conv2d(channel, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+
+        self.theta = nn.Parameter(torch.ones(1, requires_grad=True) * 0.01).to(device)
+
+        self.conv5 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv6 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv7 = nn.Conv2d(8 * multiplier, 8 * multiplier, kernel_size=3, padding=1)
+        self.conv8 = nn.Conv2d(8 * multiplier, channel, kernel_size=3, padding=1)
+
+        self.Sp = nn.Softplus()
+
+    def forward(self, x):
+        # Encode
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+
+        # Softhreshold
+        xs = torch.mul(torch.sign(x), F.relu(torch.abs(x) - self.theta))
+
+        # Decode
+        x = F.relu(self.conv5(xs))
+        x = F.relu(self.conv6(x))
+        x = F.relu(self.conv7(x))
+        x = F.relu(self.conv8(x))
+
+        return x, xs
+
 
 class CI_model(nn.Module):
     def __init__(
