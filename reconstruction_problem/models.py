@@ -39,7 +39,6 @@ class Proximal_Mapping(nn.Module):
 
         return x, xs
 
-
 class CI_model(nn.Module):
     def __init__(
         self,

@@ -233,11 +233,11 @@ def save_metrics(save_path):
 
     images_path = save_path + "/images"
     model_path = save_path + "/model"
-    metrics_path = save_path + "/metrics"
+    # metrics_path = save_path + "/metrics"
 
     os.makedirs(save_path, exist_ok=True)
     os.makedirs(images_path, exist_ok=True)
     os.makedirs(model_path, exist_ok=True)
-    os.makedirs(metrics_path, exist_ok=True)
+    # os.makedirs(metrics_path, exist_ok=True)
 
-    return images_path, model_path, metrics_path
+    return images_path, model_path #, metrics_path
