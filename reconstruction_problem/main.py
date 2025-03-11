@@ -37,7 +37,7 @@ model = CI_model(input_size=im_size,
         n_stages=7,
         device=device,
         SystemLayer="SPC",
-        real="hadamard",
+        real="False",
         sampling_pattern=None,
         base_channels=64,
         decoder="unet",
@@ -61,14 +61,16 @@ for epoch in range(num_epochs):
     x = x.to(device)
     x_hat, _, _, _ = model(x)
     loss_train = MSE_LOSS(x_hat, x)
+    ssim_train = SSIM(x_hat, x)
+    psnr_train = PSNR(x_hat, x)
 
     optimizer.zero_grad()
     loss_train.backward()
     optimizer.step()
 
     train_loss.update(loss_train.item())
-    train_ssim.update(SSIM(x_hat, x).item())
-    train_psnr.update(PSNR(x_hat, x).item())
+    train_ssim.update(ssim_train.item())
+    train_psnr.update(psnr_train.item())
     data_loop_train.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_train.set_postfix(loss=train_loss.avg, ssim=train_ssim.avg, psnr=train_psnr.avg)
   
@@ -85,11 +87,13 @@ for epoch in range(num_epochs):
       x = x.to(device)
       x_hat, _, _, _ = model(x)
       loss_val = MSE_LOSS(x_hat, x)
+      ssim_val = SSIM(x_hat, x)
+      psnr_val = PSNR(x_hat, x)
       val_loss.update(loss_val.item())
-      val_ssim.update(SSIM(x_hat, x).item())
-      val_psnr.update(PSNR(x_hat, x).item())
-      data_loop_train.set_description(f"Epoch: {epoch+1}/{num_epochs}")
-      data_loop_train.set_postfix(loss=val_loss.avg, ssim=val_ssim.avg, psnr=val_psnr.avg)
+      val_ssim.update(ssim_val.item())
+      val_psnr.update(psnr_val.item())
+      data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
+      data_loop_val.set_postfix(loss=val_loss.avg, ssim=val_ssim.avg, psnr=val_psnr.avg)
 
   if val_psnr.avg > current_psnr:
             current_psnr = val_psnr.avg
@@ -140,9 +144,11 @@ with torch.no_grad():
     x = x.to(device)
     x_hat, _, _, _ = model(x)
     loss_test = MSE_LOSS(x_hat, x)
+    ssim_test = SSIM(x_hat, x)
+    psnr_test = PSNR(x_hat, x)
     test_loss.update(loss_test.item())
-    test_ssim.update(SSIM(x_hat, x).item())
-    test_psnr.update(PSNR(x_hat, x).item())
+    test_ssim.update(ssim_test.item())
+    test_psnr.update(psnr_test.item())
     data_loop_test.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_test.set_postfix(loss=test_loss.avg, ssim=test_ssim.avg, psnr=test_psnr.avg)
 
