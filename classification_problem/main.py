@@ -2,8 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchmetrics.image import StructuralSimilarityIndexMeasure, PeakSignalNoiseRatio
-from torchmetrics.classification import Accuracy
+from torchmetrics.classification import Accuracy, ConfusionMatrix
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import wandb
@@ -23,7 +22,7 @@ current_acc = 0
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = device = "cuda" if torch.cuda.is_available() else "cpu"
 
-num_epochs = 1
+num_epochs = 150
 batch_size = 2**6
 
 _, im_size, num_classes, _, _, _, testloader, trainloader, valoader = get_dataset("MNIST", "data", batch_size, 42)
@@ -31,7 +30,7 @@ _, im_size, num_classes, _, _, _, testloader, trainloader, valoader = get_datase
 im_size = (1, im_size[-2], im_size[-1])
 
 model = CI_model(input_size=im_size,
-        snapshots=int(0.12 * 32 * 32),
+        snapshots=int((0.12 * 32 * 32)/(2)),
         n_stages=None,
         device=device,
         SystemLayer="SPC",
@@ -43,10 +42,11 @@ model = CI_model(input_size=im_size,
 
 CE_LOSS = nn.CrossEntropyLoss()
 accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
+confmat = ConfusionMatrix(task="multiclass",num_classes=num_classes).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3) 
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="Classification_MNIST", name="prueba 6",config={"num_epochs": num_epochs})
+wandb.init(project="Classification_MNIST", name="Prueba 1_150",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
@@ -62,8 +62,9 @@ for epoch in range(num_epochs):
     x_hat = model(x_imgs)
     x_aux = x_hat[0]
     pred_labels = torch.argmax(x_aux, dim=1)
-    loss_train = CE_LOSS(pred_labels, x_labels)
+    loss_train = CE_LOSS(x_aux, x_labels)
     acc_train = accuracy(pred_labels, x_labels)
+    confmat_train = confmat(pred_labels, x_labels)
 
     optimizer.zero_grad()
     loss_train.backward()
@@ -71,6 +72,7 @@ for epoch in range(num_epochs):
 
     train_loss.update(loss_train.item())
     train_acc.update(acc_train.item())
+
     data_loop_train.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_train.set_postfix(loss=train_loss.avg, acc=train_acc.avg)
   
@@ -88,8 +90,9 @@ for epoch in range(num_epochs):
       x_hat = model(x_imgs)
       x_aux = x_hat[0]
       pred_labels = torch.argmax(x_aux, dim=1)
-      loss_val = CE_LOSS(pred_labels, x_labels)
+      loss_val = CE_LOSS(x_aux, x_labels)
       acc_val = accuracy(pred_labels, x_labels)
+      confmat_val = confmat(pred_labels, x_labels)
       val_loss.update(loss_val.item())
       val_acc.update(acc_val.item())
       data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
@@ -107,6 +110,8 @@ for epoch in range(num_epochs):
               "val_loss": val_loss.avg,
               "train_acc": train_acc.avg,
               "val_acc": val_acc.avg,
+              "train_confmat": confmat_train,
+              "val_confmat": confmat_val,
               "coded_aperture": images})
 
 test_loss = AverageMeter()
@@ -115,7 +120,7 @@ test_acc = AverageMeter()
 del model
 
 model = CI_model(input_size=im_size,
-        snapshots=int(0.12 * 32 * 32),
+        snapshots=int((0.12 * 32 * 32)/(2)),
         n_stages=None,
         device=device,
         SystemLayer="SPC",
@@ -137,14 +142,16 @@ with torch.no_grad():
     x_hat = model(x_imgs)
     x_aux = x_hat[0]
     pred_labels = torch.argmax(x_aux, dim=1)
-    loss_test = CE_LOSS(pred_labels, x_labels)
+    loss_test = CE_LOSS(x_aux, x_labels)
     acc_test = accuracy(pred_labels, x_labels)
+    confmat_test = confmat(pred_labels, x_labels)
     test_loss.update(loss_test.item())
     test_acc.update(acc_test.item())
     data_loop_test.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_test.set_postfix(loss=test_loss.avg, acc=test_acc.avg)
 
 wandb.log({"test_loss": test_loss.avg,
-            "test_acc": test_acc.avg})
+            "test_acc": test_acc.avg,
+            "test_confmat": confmat_test})
 
 wandb.finish()

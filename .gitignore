@@ -2,3 +2,5 @@
 /data
 /imagenes_kd
 /wandb
+/classification_problem/__pycache__
+/reconstruction_problem/__pycache__
