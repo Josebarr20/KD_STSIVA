@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from optics import OpticsSPC
+from optics import SPC
 
 class Proximal_Mapping(nn.Module):
     def __init__(self, channel, device, multiplier: int = 1.0):
@@ -44,40 +44,16 @@ class CI_model(nn.Module):
         self,
         input_size: tuple,  # (channel, height, width)
         snapshots: int,
-        n_stages: int,
-        device: str,
-        SystemLayer: str,
         real: str,
-        sampling_pattern: str,
-        base_channels: int,
-        decoder: str,
-        acc_factor: int,
-        snr: int = 0,
     ):
         super(CI_model, self).__init__()
-
-        if SystemLayer == "SPC":
-            self.system_layer = OpticsSPC(input_size, snapshots, real, snr)
-            multiplier = 4
-        else:
-            raise ValueError("Invalid System Layer")
-
-        self.decoder = decoder
-
-        if self.decoder == "resnet18":
-            self.net = ResNet18(num_classes=10)
-        else:
-            raise ValueError("Invalid Decoder")
+        self.system_layer = SPC(pinv=False, num_measurements=snapshots, img_size=(input_size[1], input_size[2]), trainable=True, real=real)
+        self.net = ResNet18(num_channels=input_size[0],num_classes=10,divisor=4)
 
     def forward(self, x):
-        if self.decoder == "resnet18":
-            return self.forward_resnet18(x)
-
-    def forward_resnet18(self, x):
-        y = self.system_layer.forward_pass(x)
-        x_est = self.system_layer.transpose_pass(y)
-        out = self.net(x_est)
-        return out, x_est, y
+        x = self.system_layer(x)
+        x = self.net(x)
+        return x    
 
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -87,7 +63,7 @@ class BasicBlock(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
-        
+
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -106,20 +82,20 @@ class BasicBlock(nn.Module):
         return out
 
 class ResNet18(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self,num_channels=1, num_classes=10, divisor = 1):
         super(ResNet18, self).__init__()
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=9, stride=2, padding=3, bias=False)  
-        self.bn1 = nn.BatchNorm2d(64)
+        self.conv1 = nn.Conv2d(num_channels, 64//divisor, kernel_size=9, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(64//divisor)
         self.maxpool = nn.MaxPool2d(kernel_size=4, stride=2, padding=1)
 
-        self.layer1 = self._make_layer(64, 64, 2, stride=1)
-        self.layer2 = self._make_layer(64, 128, 2, stride=2)
-        self.layer3 = self._make_layer(128, 256, 2, stride=2)
-        self.layer4 = self._make_layer(256, 512, 2, stride=2)
-        self.layer5 = self._make_layer(512, 1024, 2, stride=2)
+        self.layer1 = self._make_layer(64//divisor, 64//divisor, 2, stride=1)
+        self.layer2 = self._make_layer(64//divisor, 128//divisor, 2, stride=2)
+        self.layer3 = self._make_layer(128//divisor, 256//divisor, 2, stride=2)
+        self.layer4 = self._make_layer(256//divisor, 512//divisor, 2, stride=2)
+        self.layer5 = self._make_layer(512//divisor, 1024//divisor, 2, stride=2)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(1024, num_classes)
+        self.fc = nn.Linear(1024//divisor, num_classes)
 
     def _make_layer(self, in_channels, out_channels, blocks, stride):
         layers = []
@@ -141,3 +117,10 @@ class ResNet18(nn.Module):
         x = self.fc(x)
         x = F.softmax(x, dim=1)
         return x
+    
+# if __name__ == "__main__":
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     img = torch.randn(32, 3, 32, 32).to(device)
+#     model = CI_model(input_size=(3, 32, 32), snapshots=100, real="False").to(device)
+#     out = model(img)
+#     print(out.size())

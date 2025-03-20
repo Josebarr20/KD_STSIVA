@@ -130,6 +130,16 @@ def get_dataset(dataset: str, data_path: str, batch_size: int, seed: int = 42):
         train_sample, val_sample = get_validation_set(dst_train, split=0.1, seed=seed)
         class_names = dst_train.classes
 
+    elif dataset == 'CIFAR10':
+        channel = 3
+        im_size = (32, 32)
+        num_classes = 10
+        transform = transforms.Compose([transforms.Resize(im_size), transforms.ToTensor()])
+        dst_train = datasets.CIFAR10(data_path, train=True, download=True, transform=transform)
+        dst_test = datasets.CIFAR10(data_path, train=False, download=True, transform=transform) 
+        train_sample, val_sample = get_validation_set(dst_train, split=0.1, seed=seed)
+        class_names = dst_train.classes
+
     elif dataset == "STL10":
         channel = 1
         im_size = (96, 96)

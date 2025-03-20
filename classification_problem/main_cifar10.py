@@ -2,7 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchmetrics.classification import Accuracy, ConfusionMatrix
+from torchmetrics.classification import Accuracy
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import wandb
@@ -10,9 +10,7 @@ from models import CI_model
 from utils import (get_dataset, 
                    set_seed, 
                    save_metrics, 
-                   AverageMeter, 
-                   save_coded_apertures, 
-                   save_reconstructed_images)
+                   AverageMeter)
 
 set_seed(42)
 
@@ -25,28 +23,23 @@ device = device = "cuda" if torch.cuda.is_available() else "cpu"
 num_epochs = 150
 batch_size = 2**6
 
-_, im_size, num_classes, _, _, _, testloader, trainloader, valoader = get_dataset("MNIST", "data", batch_size, 42)
+_, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("MNIST", "data", batch_size, 42)
 
 im_size = (1, im_size[-2], im_size[-1])
 
+for i in range(len(class_names)):
+    class_names[i] = int(class_names[i])
+
 model = CI_model(input_size=im_size,
-        snapshots=int((0.12 * 32 * 32)/(2)),
-        n_stages=None,
-        device=device,
-        SystemLayer="SPC",
-        real="False",
-        sampling_pattern=None,
-        base_channels=None,
-        decoder="resnet18",
-        acc_factor=None).to(device)
+        snapshots=int(0.12 * 32 * 32),
+        real="False").to(device)
 
 CE_LOSS = nn.CrossEntropyLoss()
 accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
-confmat = ConfusionMatrix(task="multiclass",num_classes=num_classes).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3) 
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="Classification_MNIST", name="Prueba 1_150",config={"num_epochs": num_epochs})
+wandb.init(project="Classification_CIFAR10", name="Prueba 1 - 150",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
@@ -60,11 +53,9 @@ for epoch in range(num_epochs):
     x_imgs = x_imgs.to(device)
     x_labels = x_labels.to(device)
     x_hat = model(x_imgs)
-    x_aux = x_hat[0]
-    pred_labels = torch.argmax(x_aux, dim=1)
-    loss_train = CE_LOSS(x_aux, x_labels)
+    pred_labels = torch.argmax(x_hat, dim=1)
+    loss_train = CE_LOSS(x_hat, x_labels)
     acc_train = accuracy(pred_labels, x_labels)
-    confmat_train = confmat(pred_labels, x_labels)
 
     optimizer.zero_grad()
     loss_train.backward()
@@ -72,9 +63,9 @@ for epoch in range(num_epochs):
 
     train_loss.update(loss_train.item())
     train_acc.update(acc_train.item())
-
     data_loop_train.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_train.set_postfix(loss=train_loss.avg, acc=train_acc.avg)
+    
   
   with torch.no_grad():
     model.eval()
@@ -88,11 +79,9 @@ for epoch in range(num_epochs):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
       x_hat = model(x_imgs)
-      x_aux = x_hat[0]
-      pred_labels = torch.argmax(x_aux, dim=1)
-      loss_val = CE_LOSS(x_aux, x_labels)
+      pred_labels = torch.argmax(x_hat, dim=1)
+      loss_val = CE_LOSS(x_hat, x_labels)
       acc_val = accuracy(pred_labels, x_labels)
-      confmat_val = confmat(pred_labels, x_labels)
       val_loss.update(loss_val.item())
       val_acc.update(acc_val.item())
       data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
@@ -103,16 +92,10 @@ for epoch in range(num_epochs):
             print(f"Saving model with Accuracy: {current_acc}")
             torch.save(model.state_dict(), f"{model_path}/model.pth")
 
-  iamge_array = save_coded_apertures(model.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}", "SPC")
-  images = wandb.Image(iamge_array, caption=f"Epoch: {epoch}")
-
   wandb.log({"train_loss": train_loss.avg,
               "val_loss": val_loss.avg,
               "train_acc": train_acc.avg,
-              "val_acc": val_acc.avg,
-              "train_confmat": confmat_train,
-              "val_confmat": confmat_val,
-              "coded_aperture": images})
+              "val_acc": val_acc.avg})
 
 test_loss = AverageMeter()
 test_acc = AverageMeter()
@@ -120,15 +103,8 @@ test_acc = AverageMeter()
 del model
 
 model = CI_model(input_size=im_size,
-        snapshots=int((0.12 * 32 * 32)/(2)),
-        n_stages=None,
-        device=device,
-        SystemLayer="SPC",
-        real="False",
-        sampling_pattern=None,
-        base_channels=None,
-        decoder="resnet18",
-        acc_factor=None).to(device)
+        snapshots=int(0.12 * 32 * 32),
+        real="False").to(device)
 
 model.load_state_dict(torch.load(f"{model_path}/model.pth"))
 
@@ -140,18 +116,15 @@ with torch.no_grad():
     x_imgs = x_imgs.to(device)
     x_labels = x_labels.to(device)
     x_hat = model(x_imgs)
-    x_aux = x_hat[0]
-    pred_labels = torch.argmax(x_aux, dim=1)
-    loss_test = CE_LOSS(x_aux, x_labels)
+    pred_labels = torch.argmax(x_hat, dim=1)
+    loss_test = CE_LOSS(x_hat, x_labels)
     acc_test = accuracy(pred_labels, x_labels)
-    confmat_test = confmat(pred_labels, x_labels)
     test_loss.update(loss_test.item())
     test_acc.update(acc_test.item())
     data_loop_test.set_description(f"Epoch: {epoch+1}/{num_epochs}")
     data_loop_test.set_postfix(loss=test_loss.avg, acc=test_acc.avg)
 
 wandb.log({"test_loss": test_loss.avg,
-            "test_acc": test_acc.avg,
-            "test_confmat": confmat_test})
+            "test_acc": test_acc.avg})
 
 wandb.finish()
