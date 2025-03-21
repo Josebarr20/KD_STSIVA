@@ -141,20 +141,14 @@ def get_dataset(dataset: str, data_path: str, batch_size: int, seed: int = 42):
         class_names = dst_train.classes
 
     elif dataset == "STL10":
-        channel = 1
+        channel = 3
         im_size = (96, 96)
-        num_classes = None
-        class_names = None
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Grayscale(num_output_channels=channel)]
-        )
-        dst_train = datasets.STL10(
-            data_path, split="unlabeled", download=True, folds=None, transform=transform
-        )
-        dst_test = None
-        train_sample, val_sample, test_sample = get_test_val_set(
-            dst_train, split_test=0.1, split_val=0.1, seed=seed
-        )
+        num_classes = 10
+        transform = transforms.Compose([transforms.Resize(im_size), transforms.ToTensor()])
+        dst_train = datasets.STL10(data_path, split="train", download=True, transform=transform)
+        dst_test = datasets.STL10(data_path, split="test", download=True, transform=transform)
+        train_sample, val_sample, test_sample = get_test_val_set(dst_train, seed=seed)
+        class_names = dst_train.classes
 
     else:
         raise ValueError("unknown dataset: %s" % dataset)
