@@ -20,8 +20,8 @@ current_acc = 0
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = device = "cuda" if torch.cuda.is_available() else "cpu"
 
-num_epochs = 150
-batch_size = 2**6
+num_epochs = 50
+batch_size = 2**7
 
 _, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
 
@@ -36,7 +36,7 @@ accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3) 
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="Classification_CIFAR10", name="Prueba 3 - 150",config={"num_epochs": num_epochs})
+wandb.init(project="Classification_CIFAR10", name="Prueba 5 - 100% CAP_test",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
