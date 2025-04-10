@@ -21,22 +21,27 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = device = "cuda" if torch.cuda.is_available() else "cpu"
 
 num_epochs = 50
-batch_size = 2**7
+batch_size = 2**5
 
-_, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
+channels, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
 
-im_size = (3, im_size[-2], im_size[-1])
+#add channels to im_size
+im_size = (channels, im_size[-2], im_size[-1])
+SPC_portion = 0.5
 
 model = CI_model(input_size=im_size,
-        snapshots=int(0.12 * 32 * 32),
+        snapshots=int(SPC_portion * 32 * 32),
         real="False").to(device)
 
 CE_LOSS = nn.CrossEntropyLoss()
 accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-3) 
+#optimizer = optim.Adam(model.parameters(), lr=1e-3) 
+optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=5e-3) #K4 1e-3 decay 5e-4 step 5
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="Classification_CIFAR10", name="Prueba 5 - 100% CAP_test",config={"num_epochs": num_epochs})
+wandb.init(project="Classification_CIFAR10", name="Prueba K6 - 100% CAP_test, change optimizer_ lr 1e-4 _ wd _ 5e-3 step 10",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
@@ -84,6 +89,7 @@ for epoch in range(num_epochs):
       data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
       data_loop_val.set_postfix(loss=val_loss.avg, acc=val_acc.avg)
   
+  scheduler.step(val_loss.avg)
   if val_acc.avg > current_acc:
             current_acc = val_acc.avg
             print(f"Saving model with Accuracy: {current_acc}")
@@ -100,7 +106,7 @@ test_acc = AverageMeter()
 del model
 
 model = CI_model(input_size=im_size,
-        snapshots=int(0.12 * 32 * 32),
+        snapshots=int(SPC_portion * 32 * 32),
         real="False").to(device)
 
 model.load_state_dict(torch.load(f"{model_path}/model.pth"))
