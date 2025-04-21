@@ -17,31 +17,55 @@ set_seed(42)
 images_path, model_path = save_metrics(f"imagenes_kd")
 current_acc = 0
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-device = device = "cuda" if torch.cuda.is_available() else "cpu"
 
-num_epochs = 50
-batch_size = 2**5
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+id_device = 1
+
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+device = device = f"cuda:{id_device}" if torch.cuda.is_available() else "cpu"
+
+
+num_epochs = 100
+batch_size = 2**7
 
 channels, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
 
 #add channels to im_size
 im_size = (channels, im_size[-2], im_size[-1])
-SPC_portion = 0.5
+SPC_portion = 1
 
 model = CI_model(input_size=im_size,
         snapshots=int(SPC_portion * 32 * 32),
         real="False").to(device)
 
+lr = 0.1
+momentum = 0.9
+weight_decay = 5e-4
+milestones = [30,70]
+gamma = 0.1
+
 CE_LOSS = nn.CrossEntropyLoss()
 accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
 #optimizer = optim.Adam(model.parameters(), lr=1e-3) 
-optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=5e-3) #K4 1e-3 decay 5e-4 step 5
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+optimizer = torch.optim.SGD(
+    model.parameters(),
+    lr=lr,     
+    momentum=momentum,
+    weight_decay=weight_decay,
+)
 
+scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    optimizer,
+    milestones=milestones,
+    gamma=gamma,
+)
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="Classification_CIFAR10", name="Prueba K6 - 100% CAP_test, change optimizer_ lr 1e-4 _ wd _ 5e-3 step 10",config={"num_epochs": num_epochs})
+wandb.init(
+    project="Classification_CIFAR10_Acc_vs_SPC",
+    name=f"Prueba J1 - 100% CAP _lr: {lr} _momentum: {momentum} _weight_decay: {weight_decay} _milestones: {milestones} _gamma{gamma}",config={"num_epochs": num_epochs})
+
+    # _milestones:{milestones} _gamma: {gamma}",
 
 for epoch in range(num_epochs):
   model.train()
@@ -131,3 +155,5 @@ wandb.log({"test_loss": test_loss.avg,
             "test_acc": test_acc.avg})
 
 wandb.finish()
+
+torch.save(model.state_dict(), 'model_weights.pth')
