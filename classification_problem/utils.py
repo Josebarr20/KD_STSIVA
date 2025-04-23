@@ -214,34 +214,7 @@ def save_coded_apertures(system_layer, row, pad, path, name, system):
 
     return grid
 
-
-def save_reconstructed_images(imgs, recons, num_img, pad, path, name, PSNR, SSIM):
-
-    grid = vutils.make_grid(
-        torch.cat((imgs[:num_img], recons[:num_img])), nrow=num_img, padding=pad, normalize=True
-    )
-    vutils.save_image(grid, f"{path}/{name}.png")
-
-    psnr_imgs = [
-        np.round(PSNR(recons[i].unsqueeze(0), imgs[i].unsqueeze(0)).item(), 2)
-        for i in range(num_img)
-    ]
-    ssim_imgs = [
-        np.round(SSIM(recons[i].unsqueeze(0), imgs[i].unsqueeze(0)).item(), 3)
-        for i in range(num_img)
-    ]
-
-    return grid, psnr_imgs, ssim_imgs
-
 def save_metrics(save_path):
-
-    # images_path = save_path + "/images"
     model_path = save_path + "/model"
-    # metrics_path = save_path + "/metrics"
-
-    # os.makedirs(save_path, exist_ok=True)
-    # os.makedirs(images_path, exist_ok=True)
     os.makedirs(model_path, exist_ok=True)
-    # os.makedirs(metrics_path, exist_ok=True)
-
-    return model_path # ,images_path, metrics_path
+    return model_path
