@@ -14,58 +14,45 @@ from utils import (get_dataset,
 
 set_seed(42)
 
-images_path, model_path = save_metrics(f"imagenes_kd")
+model_path = save_metrics(f"save_model")
 current_acc = 0
+best_epoch = 0
 
-
+# Set the device to GPU 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-id_device = 1
-
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+id_device = 0
 device = device = f"cuda:{id_device}" if torch.cuda.is_available() else "cpu"
+# if colab is used, set the device to GPU
+# device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
+# Hyperparameters
+num_test = 4
+letter = "J" # letter from the person who is running the code
 num_epochs = 100
 batch_size = 2**7
+lr = 0.1
+momentum = 0.9
+weight_decay = 5e-4
+milestones = [30, 50, 70, 80]
+gamma = 0.1
+SPC_portion = 0.2 # 1.0 for 100% CAP
 
 channels, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
-
-#add channels to im_size
 im_size = (channels, im_size[-2], im_size[-1])
-SPC_portion = 1
 
 model = CI_model(input_size=im_size,
         snapshots=int(SPC_portion * 32 * 32),
         real="False").to(device)
 
-lr = 0.1
-momentum = 0.9
-weight_decay = 5e-4
-milestones = [30,70]
-gamma = 0.1
-
+# Loss and regularization
 CE_LOSS = nn.CrossEntropyLoss()
 accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
-#optimizer = optim.Adam(model.parameters(), lr=1e-3) 
-optimizer = torch.optim.SGD(
-    model.parameters(),
-    lr=lr,     
-    momentum=momentum,
-    weight_decay=weight_decay,
-)
+optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
-scheduler = torch.optim.lr_scheduler.MultiStepLR(
-    optimizer,
-    milestones=milestones,
-    gamma=gamma,
-)
+scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(
-    project="Classification_CIFAR10_Acc_vs_SPC",
-    name=f"Prueba J1 - 100% CAP _lr: {lr} _momentum: {momentum} _weight_decay: {weight_decay} _milestones: {milestones} _gamma{gamma}",config={"num_epochs": num_epochs})
-
-    # _milestones:{milestones} _gamma: {gamma}",
+wandb.init(project="Classification_CIFAR10_Acc_vs_SPC",name=f"Prueba {letter}{num_test} - 20% CAP _lr: {lr} _momentum: {momentum} _weight_decay: {weight_decay} _milestones: {milestones} _gamma: {gamma}",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   model.train()
@@ -113,16 +100,17 @@ for epoch in range(num_epochs):
       data_loop_val.set_description(f"Epoch: {epoch+1}/{num_epochs}")
       data_loop_val.set_postfix(loss=val_loss.avg, acc=val_acc.avg)
   
-  scheduler.step(val_loss.avg)
+  scheduler.step()
   if val_acc.avg > current_acc:
             current_acc = val_acc.avg
             print(f"Saving model with Accuracy: {current_acc}")
             torch.save(model.state_dict(), f"{model_path}/model.pth")
+            best_epoch = epoch
 
   wandb.log({"train_loss": train_loss.avg,
               "val_loss": val_loss.avg,
               "train_acc": train_acc.avg,
-              "val_acc": val_acc.avg})
+              "val_acc": val_acc.avg,})
 
 test_loss = AverageMeter()
 test_acc = AverageMeter()
@@ -152,8 +140,7 @@ with torch.no_grad():
     data_loop_test.set_postfix(loss=test_loss.avg, acc=test_acc.avg)
 
 wandb.log({"test_loss": test_loss.avg,
-            "test_acc": test_acc.avg})
+            "test_acc": test_acc.avg,
+            "best_epoch": best_epoch})
 
 wandb.finish()
-
-torch.save(model.state_dict(), 'model_weights.pth')
