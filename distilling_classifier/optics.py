@@ -10,7 +10,6 @@ def hadamard(n):
         h = hadamard(n // 2)
         return np.block([[h, h], [h, -h]])
     
-    
 # RGB SPC Acquisition
 
 def forward_spc(x: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
@@ -71,6 +70,10 @@ class SPC(nn.Module):
         H = torch.randn(num_measurements, M*N)
         self.H = nn.Parameter(H, requires_grad=trainable)
         self.real = real
+
+        # ca = torch.normal(0, 1, size=(num_measurements, M, N))
+        # ca = ca / torch.sqrt(torch.tensor(M * N).float())
+        # self.cas = nn.Parameter(ca, requires_grad=True)
 
     def forward(self, x: torch.Tensor) -> torch:
         y = forward_spc(x, self.H if self.real == "True" else BinaryQuantize_1.apply(self.H))
