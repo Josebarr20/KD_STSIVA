@@ -30,9 +30,9 @@ num_test = 0
 letter = "J" # letter from the person who is running the code
 
 # Hyperparameters
-num_epochs = 20
+num_epochs = 2
 batch_size = 2**7
-lr = 0.1
+lr = 0.005
 momentum = 0.9
 weight_decay = 5e-4
 milestones = [15, 50, 70, 80]
@@ -61,7 +61,7 @@ teacher = CI_model(input_size=im_size,
         snapshots=int(SPC_portion_tchr * 32 * 32),
         real="False").to(device)
 
-teacher.load_state_dict(torch.load(r"C:\Users\josea\OneDrive\Documentos\GitHub\KD_STSIVA\distilling_classifier\save_model\model.pth"))
+teacher.load_state_dict(torch.load("distilling_classifier\save_model\model.pth"))
 
 for param in teacher.parameters():
     param.requires_grad = False
@@ -96,12 +96,13 @@ for epoch in range(num_epochs):
     pred_labels_s = torch.argmax(x_hat_s, dim=1)
     loss_deco = CE_LOSS(x_hat_s, x_labels)
 
+  
     loss_optics = kd_rb_spc(
                 pred_teacher=x_hat_t,
                 pred_student=x_hat_s,
                 loss_type="gram",
-                ca_s=student.system_layer.cas,
-                ca_t=teacher.system_layer.cas
+                ca_s=student.system_layer.H,
+                ca_t=teacher.system_layer.H
                 )
 
     loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
@@ -154,8 +155,8 @@ for epoch in range(num_epochs):
                   pred_teacher=x_hat_t,
                   pred_student=x_hat_s,
                   loss_type="gram",
-                  ca_s=student.system_layer.cas,
-                  ca_t=teacher.system_layer.cas
+                  ca_s=student.system_layer.H,
+                  ca_t=teacher.system_layer.H
                   )
 
       loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
@@ -168,9 +169,9 @@ for epoch in range(num_epochs):
 
       loss_val = loss_deco + loss_optics + loss_labels + loss_kl    
 
-      optimizer.zero_grad()
-      loss_val.backward()
-      optimizer.step()
+      #optimizer.zero_grad()
+      #loss_val.backward()
+      #optimizer.step()
 
       val_loss.update(loss_val.item())
       val_deco_loss.update(loss_deco.item())
@@ -235,8 +236,8 @@ with torch.no_grad():
                 pred_teacher=x_hat_t,
                 pred_student=x_hat_s,
                 loss_type="gram",
-                ca_s=student.system_layer.cas,
-                ca_t=teacher.system_layer.cas
+                ca_s=student.system_layer.H,
+                ca_t=teacher.system_layer.H
                 )
 
     loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
@@ -249,9 +250,9 @@ with torch.no_grad():
 
     loss_test = loss_deco + loss_optics + loss_labels + loss_kl    
 
-    optimizer.zero_grad()
-    loss_test.backward()
-    optimizer.step()
+    #optimizer.zero_grad()
+    #loss_test.backward()
+    #optimizer.step()
 
     test_loss.update(loss_test.item())
     test_deco_loss.update(loss_deco.item())

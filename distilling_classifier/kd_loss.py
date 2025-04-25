@@ -5,11 +5,11 @@ def kd_rb_spc(loss_type, pred_teacher, pred_student, ca_s, ca_t):
     MSE = nn.MSELoss()
 
     if loss_type == "gram":
-        snapshots_s, M, N = ca_s.shape
-        snapshots_t, M, N = ca_t.shape
+        #snapshots_s, M, N = ca_s.shape
+        #snapshots_t, M, N = ca_t.shape
 
-        ca_s = ca_s.view(-1, M * N)
-        ca_t = ca_t.view(-1, M * N)
+        #ca_s = ca_s.view(-1, M * N)
+        #ca_t = ca_t.view(-1, M * N)
 
         gram_s = torch.matmul(ca_s.T, ca_s)
 
@@ -45,7 +45,6 @@ class Correlation(nn.Module):
             param (float): Regularization parameter.
         """        
         super(Correlation, self).__init__()
-        self.batch_size = batch_size
         self.type_reg = 'measurements'
 
     def forward(self, inputs):
@@ -59,10 +58,12 @@ class Correlation(nn.Module):
             torch.Tensor: Correlation regularization term.
         """
         x, y = inputs
-        x_reshaped = x.view(self.batch_size, -1)
-        y_reshaped = y.view(self.batch_size, -1)
+        batch_size = x.size(0)
+        x_reshaped = x.view(batch_size, -1)
+        y_reshaped = y.view(batch_size, -1)
 
-        Cxx = torch.mm(x_reshaped, x_reshaped.t()) / self.batch_size
-        Cyy = torch.mm(y_reshaped, y_reshaped.t()) / self.batch_size
+        Cxx = torch.mm(x_reshaped, x_reshaped.t()) / batch_size
+        Cyy = torch.mm(y_reshaped, y_reshaped.t()) / batch_size
 
         loss = torch.norm(Cxx - Cyy, p=2)
+        return loss
