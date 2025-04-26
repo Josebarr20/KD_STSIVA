@@ -26,28 +26,28 @@ device = device = f"cuda:{id_device}" if torch.cuda.is_available() else "cpu"
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Run settings
-num_test = 0
+num_test = 1
 letter = "J" # letter from the person who is running the code
 
 # Hyperparameters
-num_epochs = 2
+num_epochs = 100
 batch_size = 2**7
 lr = 0.005
 momentum = 0.9
 weight_decay = 5e-4
 milestones = [15, 50, 70, 80]
 gamma = 0.1
-SPC_portion_st = 0.01
+SPC_portion_st = 0.1
 SPC_portion_tchr = 0.2
-lambda1 = 1
-lambda2 = 1
-lambda3 = 1
-lambda4 = 1
+lambda1 = 0.4 # CE (deco)
+lambda2 = 0 # kd_rb_spc (optics)
+lambda3 = 0 # correlation (labels)
+lambda4 = 0 # softmax (kl)
 
 channels, im_size, num_classes, class_names, _, _, testloader, trainloader, valoader = get_dataset("CIFAR10", "data", batch_size, 42)
 im_size = (channels, im_size[-2], im_size[-1])
 
-# Regularizer and metrics
+# Regularizers and metrics
 CE_LOSS = nn.CrossEntropyLoss()
 CORR_LOSS = Correlation(batch_size=batch_size).to(device)
 kl_div_loss = nn.KLDivLoss(log_target=True)
@@ -61,7 +61,7 @@ teacher = CI_model(input_size=im_size,
         snapshots=int(SPC_portion_tchr * 32 * 32),
         real="False").to(device)
 
-teacher.load_state_dict(torch.load("distilling_classifier\save_model\model.pth"))
+teacher.load_state_dict(torch.load(r"C:\Users\SERGIOURREA\Desktop\KD_Jose\distilling_classifier\save_model_t\model.pth"))
 
 for param in teacher.parameters():
     param.requires_grad = False
@@ -71,7 +71,7 @@ optimizer = torch.optim.SGD(student.parameters(), lr=lr, momentum=momentum, weig
 scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
 
 wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-wandb.init(project="KD_classifier_CIFAR10",name=f"Prueba {letter}{num_test} - {SPC_portion_tchr*100}% CAP _lr: {lr} _momentum: {momentum} _weight_decay: {weight_decay} _milestones: {milestones} _gamma: {gamma}",config={"num_epochs": num_epochs})
+wandb.init(project=f"KD_loss_deco_penalty_lambda1",name=f"Prueba {letter}{num_test} - penalty: {lambda1} _{SPC_portion_tchr*100}% CAP_T {SPC_portion_st*100}% CAP_S  _lr: {lr} _momentum: {momentum} _weight_decay: {weight_decay} _milestones: {milestones} _gamma: {gamma}",config={"num_epochs": num_epochs})
 
 for epoch in range(num_epochs):
   student.train()
@@ -94,9 +94,9 @@ for epoch in range(num_epochs):
     x_hat_t, resnet_features_t = teacher(x_imgs)
 
     pred_labels_s = torch.argmax(x_hat_s, dim=1)
+
     loss_deco = CE_LOSS(x_hat_s, x_labels)
 
-  
     loss_optics = kd_rb_spc(
                 pred_teacher=x_hat_t,
                 pred_student=x_hat_s,
@@ -113,7 +113,7 @@ for epoch in range(num_epochs):
     soft_prob = nn.functional.log_softmax(x_hat_s / temperature, dim=-1)
     loss_kl = kl_div_loss(soft_prob, soft_targets)
 
-    loss_train = loss_deco + loss_optics + loss_labels + loss_kl    
+    loss_train = lambda1*loss_deco + lambda2*loss_optics + lambda3*loss_labels + lambda4*loss_kl     
 
     optimizer.zero_grad()
     loss_train.backward()
@@ -167,11 +167,7 @@ for epoch in range(num_epochs):
       soft_prob = nn.functional.log_softmax(x_hat_s / temperature, dim=-1)
       loss_kl = kl_div_loss(soft_prob, soft_targets)
 
-      loss_val = loss_deco + loss_optics + loss_labels + loss_kl    
-
-      #optimizer.zero_grad()
-      #loss_val.backward()
-      #optimizer.step()
+      loss_val = lambda1*loss_deco + lambda2*loss_optics + lambda3*loss_labels + lambda4*loss_kl    
 
       val_loss.update(loss_val.item())
       val_deco_loss.update(loss_deco.item())
@@ -248,11 +244,7 @@ with torch.no_grad():
     soft_prob = nn.functional.log_softmax(x_hat_s / temperature, dim=-1)
     loss_kl = kl_div_loss(soft_prob, soft_targets)
 
-    loss_test = loss_deco + loss_optics + loss_labels + loss_kl    
-
-    #optimizer.zero_grad()
-    #loss_test.backward()
-    #optimizer.step()
+    loss_test = lambda1*loss_deco + lambda2*loss_optics + lambda3*loss_labels + lambda4*loss_kl    
 
     test_loss.update(loss_test.item())
     test_deco_loss.update(loss_deco.item())
@@ -266,7 +258,6 @@ with torch.no_grad():
 wandb.log({"test_loss": test_loss.avg,
             "test_acc": test_acc.avg,
             "best_epoch": best_epoch,
-            "best_acc": current_acc,
             "test_labels_loss": test_labels_loss.avg,
             "test_optics_loss": test_optics_loss.avg,
             "test_kl_loss": test_kl_loss.avg,
