@@ -14,7 +14,7 @@ from kd_loss import *
 def main(args):
   set_seed(args.seed) 
 
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_st_{args.SPC_portion_tchr}_ss_{args.SPC_portion_st}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda2}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_st_{args.SPC_portion_tchr}_ss_{args.SPC_portion_st}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda3}"
 
   args.save_path = args.save_path + path_name
 
@@ -192,7 +192,7 @@ def main(args):
   del student
 
   student = CI_model(input_size=im_size,
-          snapshots=int(args.SPC_portion_tchr * 32 * 32),
+          snapshots=int(args.SPC_portion_st * 32 * 32),
           real="False").to(device)
 
   student.load_state_dict(torch.load(f"{model_path}/model.pth"))
