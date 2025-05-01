@@ -9,10 +9,11 @@ from tqdm import tqdm
 import wandb
 from models import CI_model
 from utils import *
+
 def main(args):
   set_seed(args.seed) 
 
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_cap_b_{args.SPC_portion}_ds_{args.dataset}_sd_{args.seed}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_cap_{int(args.SPC_portion*100)}"
 
   args.save_path = args.save_path + path_name
 
@@ -38,13 +39,13 @@ def main(args):
 
   model = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion * 32 * 32),
-          real="True").to(device) # True for real, False for binary
+          real=args.real).to(device) # True for real, False for binary
 
   optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
   scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
 
   wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-  wandb.init(project=args.project_name, name="Baseline_" + path_name, config=args)
+  wandb.init(project=args.project_name, name=f"B_{args.type_t}_" + path_name, config=args)
 
   for epoch in range(args.num_epochs):
     model.train()
@@ -57,7 +58,7 @@ def main(args):
       x_imgs, x_labels = train_data
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
-      x_hat = model(x_imgs)
+      x_hat, resnet_features = model(x_imgs)
       pred_labels = torch.argmax(x_hat, dim=1)
       loss_train = CE_LOSS(x_hat, x_labels)
       acc_train = accuracy(pred_labels, x_labels)
@@ -83,7 +84,7 @@ def main(args):
         x_imgs, x_labels = val_data
         x_imgs = x_imgs.to(device)
         x_labels = x_labels.to(device)
-        x_hat = model(x_imgs)
+        x_hat, resnet_features = model(x_imgs)
         pred_labels = torch.argmax(x_hat, dim=1)
         loss_val = CE_LOSS(x_hat, x_labels)
         acc_val = accuracy(pred_labels, x_labels)
@@ -96,11 +97,11 @@ def main(args):
     if val_acc.avg > current_acc:
               current_acc = val_acc.avg
               print(f"Saving model with Accuracy: {current_acc}")
-              torch.save(model.state_dict(), f"{model_path}/model_real_{int(args.SPC_portion*100)}.pth")
+              torch.save(model.state_dict(), f"{model_path}/model_{args.type_t}_{int(args.SPC_portion*100)}.pth")
               best_epoch = epoch
     
     image_array = save_coded_apertures(
-       model.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}", "SPC"
+       model.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}"
        )
     images = wandb.Image(image_array, caption=f"Epoch: {epoch}")
 
@@ -108,7 +109,7 @@ def main(args):
                 "val_loss": val_loss.avg,
                 "train_acc": train_acc.avg,
                 "val_acc": val_acc.avg,
-                "coded_aperture": images})
+                "coded_aperture": images if epoch % 10 == 0 else None})
 
   test_loss = AverageMeter()
   test_acc = AverageMeter()
@@ -117,9 +118,9 @@ def main(args):
 
   model = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion * 32 * 32),
-          real="False").to(device)
+          real=args.real).to(device) # True for real, False for binary
 
-  model.load_state_dict(torch.load(f"{model_path}/model_real_{int(args.SPC_portion*100)}.pth"))
+  model.load_state_dict(torch.load(f"{model_path}/model_{args.type_t}_{int(args.SPC_portion*100)}.pth"))
 
   data_loop_test = tqdm(enumerate(testloader), total=len(testloader), colour="magenta")
   with torch.no_grad():
@@ -128,7 +129,7 @@ def main(args):
       x_imgs, x_labels = test_data
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
-      x_hat = model(x_imgs)
+      x_hat, resnet_features = model(x_imgs)
       pred_labels = torch.argmax(x_hat, dim=1)
       loss_test = CE_LOSS(x_hat, x_labels)
       acc_test = accuracy(pred_labels, x_labels)
@@ -157,6 +158,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--save_path", type=str, default="WEIGHTS/BASELINE_TEST/")
     parser.add_argument("--project_name", type=str, default="Classification_CIFAR10_Baseline")
+    parser.add_argument("--type_t", type=str, default="real")
+    parser.add_argument("--real", type=str, default="True") # True for real, False for binary
 
     args = parser.parse_args()
     print(args)

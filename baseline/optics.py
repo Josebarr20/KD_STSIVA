@@ -70,15 +70,21 @@ class SPC(nn.Module):
         H = torch.randn(num_measurements, M*N)
         self.H = nn.Parameter(H, requires_grad=trainable)
         self.real = real
-
-        # ca = torch.normal(0, 1, size=(num_measurements, M, N))
-        # ca = ca / torch.sqrt(torch.tensor(M * N).float())
-        # self.cas = nn.Parameter(ca, requires_grad=True)
+        self.num_measurements = num_measurements
+        self.img_size = img_size
 
     def forward(self, x: torch.Tensor) -> torch:
         y = forward_spc(x, self.H if self.real == "True" else BinaryQuantize_1.apply(self.H))
         x_hat = backward_spc(y, self.H if self.real == "True" else BinaryQuantize_1.apply(self.H), self.pinv)
         return x_hat
+
+    def get_coded_aperture(self):
+        h = self.H.reshape(self.num_measurements, 1, *self.img_size)
+        if self.real == "False":
+            h = BinaryQuantize_1.apply(h)
+            return h
+        elif self.real == "True":
+            return h
     
 # if __name__ == "__main__":
 #     x = torch.randn(32, 3, 32, 32)
