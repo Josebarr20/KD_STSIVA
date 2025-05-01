@@ -18,7 +18,7 @@ def main(args):
 
   args.save_path = args.save_path + path_name
 
-  model_path = save_metrics(f"args.save_path")
+  images_path, model_path = save_metrics(f"args.save_path")
   current_acc = 0
   best_epoch = 0
 
@@ -42,11 +42,11 @@ def main(args):
 
   student = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_st * 32 * 32),
-          real="False").to(device)
+          real="False").to(device) # True for real, False for binary
 
   teacher = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_tchr * 32 * 32),
-          real="True").to(device)
+          real="True").to(device) # True for real, False for binary
 
   teacher.load_state_dict(torch.load(args.teacher_path))
 
@@ -167,6 +167,11 @@ def main(args):
               print(f"Saving model with Accuracy: {current_acc}")
               torch.save(student.state_dict(), f"{model_path}/model.pth")
               best_epoch = epoch
+    
+    image_array = save_coded_apertures(
+       student.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}", "SPC"
+       )
+    images = wandb.Image(image_array, caption=f"Epoch: {epoch}")
 
     wandb.log({"train_loss": train_loss.avg,
                 "val_loss": val_loss.avg,
@@ -179,7 +184,8 @@ def main(args):
                 # "val_labels_loss": val_labels_loss.avg,
                 "val_optics_loss": val_optics_loss.avg,
                 "val_kl_loss": val_kl_loss.avg,
-                "val_deco_loss": val_deco_loss.avg})
+                "val_deco_loss": val_deco_loss.avg,
+                "coded_aperture": images})
 
   test_loss = AverageMeter()
   test_acc = AverageMeter()
@@ -193,7 +199,7 @@ def main(args):
 
   student = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_st * 32 * 32),
-          real="False").to(device)
+          real="False").to(device) # True for real, False for binary
 
   student.load_state_dict(torch.load(f"{model_path}/model.pth"))
 

@@ -215,6 +215,10 @@ def save_coded_apertures(system_layer, row, pad, path, name, system):
     return grid
 
 def save_metrics(save_path):
+    images_path = save_path + "/images"
     model_path = save_path + "/model"
+
+    os.makedirs(save_path, exist_ok=True)
+    os.makedirs(images_path, exist_ok=True)
     os.makedirs(model_path, exist_ok=True)
-    return model_path
+    return images_path, model_path
