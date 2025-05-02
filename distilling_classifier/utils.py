@@ -187,28 +187,10 @@ def get_dataset(dataset: str, data_path: str, batch_size: int, seed: int = 42):
         valoader,
     )
 
-def save_coded_apertures(system_layer, row, pad, path, name, system):
-
-    if system == "SPC":
-        aperture_codes = (
-            copy.deepcopy(system_layer.get_coded_aperture().detach()).squeeze(0).unsqueeze(1)
-        )
-
-    elif system == "CASSI":
-        aperture_codes = copy.deepcopy(
-            system_layer.get_coded_aperture().detach().permute(1, 0, 2, 3)
-        )
-
-    elif system == "CCASSI":
-        cas = copy.deepcopy(system_layer.get_coded_aperture().detach())
-        aperture_codes = cas.view(cas.shape[-4] * cas.shape[-3], 1, cas.shape[-2], cas.shape[-1])
-
-    elif system == "MRI":
-        aperture_codes = copy.deepcopy(system_layer.get_mask().detach()).permute(1, 0, 2, 3)
-
-    elif system == "CT":
-        aperture_codes = copy.deepcopy(system_layer.get_mask().detach())
-
+def save_coded_apertures(system_layer, row, pad, path, name):
+    aperture_codes = (
+        copy.deepcopy(system_layer.get_coded_aperture().detach())
+    )
     grid = vutils.make_grid(aperture_codes, nrow=row, padding=pad, normalize=True)
     vutils.save_image(grid, f"{path}/{name}.png")
 

@@ -12,9 +12,9 @@ from utils import *
 from kd_loss import *
 
 def main(args):
-  set_seed(args.seed) 
+  set_seed(args.seed)
 
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_st_{args.SPC_portion_tchr}_ss_{args.SPC_portion_st}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda3}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda3}"
 
   args.save_path = args.save_path + path_name
 
@@ -42,13 +42,13 @@ def main(args):
 
   student = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_st * 32 * 32),
-          real="False").to(device) # True for real, False for binary
+          real=args.real_st).to(device) # True for real, False for binary
 
   teacher = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_tchr * 32 * 32),
-          real="True").to(device) # True for real, False for binary
+          real=args.real_tchr).to(device) # True for real, False for binary
 
-  teacher.load_state_dict(torch.load(args.teacher_path))
+  teacher.load_state_dict(torch.load(args.teacher_path)) # cada run con sus pesos
 
   for param in teacher.parameters():
       param.requires_grad = False
@@ -58,7 +58,7 @@ def main(args):
   scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
 
   wandb.login(key="cd514a4398a98306cdedf0ffb4ed08532e9734e5")
-  wandb.init(project=args.project_name, name="KD_" + path_name, config=args)
+  wandb.init(project=args.project_name, name="KD_test_losses" + path_name, config=args)
 
   for epoch in range(args.num_epochs):
     student.train()
@@ -169,7 +169,7 @@ def main(args):
               best_epoch = epoch
     
     image_array = save_coded_apertures(
-       student.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}", "SPC"
+       student.system_layer, 8, 2, images_path, f"coded_aperture_{epoch}"
        )
     images = wandb.Image(image_array, caption=f"Epoch: {epoch}")
 
@@ -185,7 +185,7 @@ def main(args):
                 "val_optics_loss": val_optics_loss.avg,
                 "val_kl_loss": val_kl_loss.avg,
                 "val_deco_loss": val_deco_loss.avg,
-                "coded_aperture": images})
+                "coded_aperture": images if epoch % 20 == 0 else None})
 
   test_loss = AverageMeter()
   test_acc = AverageMeter()
@@ -199,7 +199,7 @@ def main(args):
 
   student = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_st * 32 * 32),
-          real="False").to(device) # True for real, False for binary
+          real=args.real_st).to(device) # True for real, False for binary
 
   student.load_state_dict(torch.load(f"{model_path}/model.pth"))
 
@@ -274,10 +274,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--teacher_path",
         type=str,
-        default=r"C:\Users\SERGIOURREA\Desktop\KD_Jose\distilling_classifier\save_model_t\model_t_CAP_20.pth",
+        default=r"C:\Users\SERGIOURREA\Desktop\KD_Jose\distilling_classifier\save_model_t\model_binary_10.pth",
     )
     parser.add_argument("--save_path", type=str, default="WEIGHTS/SPC_KD_TEST/")
     parser.add_argument("--project_name", type=str, default="KD_LOSSES_TEST")
+    parser.add_argument("--real_st", type=str, default="False") # True for real, False for binary
+    parser.add_argument("--real_tchr", type=str, default="False") # True for real, False for binary
+    
 
     args = parser.parse_args()
     print(args)
