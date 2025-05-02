@@ -4,3 +4,4 @@
 /wandb
 /classification_problem/__pycache__
 /reconstruction_problem/__pycache__
+/distilling_classifier/save_model_t
