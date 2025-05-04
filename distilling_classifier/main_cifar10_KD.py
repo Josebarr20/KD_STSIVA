@@ -257,11 +257,7 @@ def main(args):
               # "test_labels_loss": test_labels_loss.avg,
               "test_optics_loss": test_optics_loss.avg,
               "test_kl_loss": test_kl_loss.avg,
-              "test_deco_loss": test_deco_loss.avg,
-              "logits_s_test": wandb.Histogram(x_hat_s_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
-              "logits_t_test": wandb.Histogram(x_hat_t_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
-              "probs_s_test": wandb.Histogram(soft_prob_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
-              "probs_t_test": wandb.Histogram(soft_targets_test.detach().cpu().numpy()) if epoch % 10 == 0 else None})
+              "test_deco_loss": test_deco_loss.avg})
 
   wandb.finish()
 
