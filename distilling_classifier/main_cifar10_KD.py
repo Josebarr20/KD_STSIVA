@@ -186,14 +186,14 @@ def main(args):
                 "val_kl_loss": val_kl_loss.avg,
                 "val_deco_loss": val_deco_loss.avg,
                 "coded_aperture": images if epoch % 20 == 0 else None,
-                "logits_s_train": wandb.Histogram(x_hat_s_train) if epoch % 10 == 0 else None,
-                "logits_t_train": wandb.Histogram(x_hat_t_train) if epoch % 10 == 0 else None,
-                "logits_s_val": wandb.Histogram(x_hat_s_val) if epoch % 10 == 0 else None,
-                "logits_t_val": wandb.Histogram(x_hat_t_val) if epoch % 10 == 0 else None,
-                "probs_s_train": wandb.Histogram(soft_prob_train) if epoch % 10 == 0 else None,
-                "probs_t_train": wandb.Histogram(soft_targets_train) if epoch % 10 == 0 else None,
-                "probs_s_val": wandb.Histogram(soft_prob_val) if epoch % 10 == 0 else None,
-                "probs_t_val": wandb.Histogram(soft_targets_val) if epoch % 10 == 0 else None})
+                "logits_s_train": wandb.Histogram(x_hat_s_train.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "logits_t_train": wandb.Histogram(x_hat_t_train.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "logits_s_val": wandb.Histogram(x_hat_s_val.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "logits_t_val": wandb.Histogram(x_hat_t_val.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "probs_s_train": wandb.Histogram(soft_prob_train.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "probs_t_train": wandb.Histogram(soft_targets_train.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "probs_s_val": wandb.Histogram(soft_prob_val.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+                "probs_t_val": wandb.Histogram(soft_targets_val.detach().cpu().numpy()) if epoch % 10 == 0 else None})
 
 
   test_loss = AverageMeter()
@@ -258,10 +258,10 @@ def main(args):
               "test_optics_loss": test_optics_loss.avg,
               "test_kl_loss": test_kl_loss.avg,
               "test_deco_loss": test_deco_loss.avg,
-              "logits_s_test": wandb.Histogram(x_hat_s_test) if epoch % 10 == 0 else None,
-              "logits_t_test": wandb.Histogram(x_hat_t_test) if epoch % 10 == 0 else None,
-              "probs_s_test": wandb.Histogram(soft_prob_test) if epoch % 10 == 0 else None,
-              "probs_t_test": wandb.Histogram(soft_targets_test) if epoch % 10 == 0 else None})
+              "logits_s_test": wandb.Histogram(x_hat_s_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+              "logits_t_test": wandb.Histogram(x_hat_t_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+              "probs_s_test": wandb.Histogram(soft_prob_test.detach().cpu().numpy()) if epoch % 10 == 0 else None,
+              "probs_t_test": wandb.Histogram(soft_targets_test.detach().cpu().numpy()) if epoch % 10 == 0 else None})
 
   wandb.finish()
 
