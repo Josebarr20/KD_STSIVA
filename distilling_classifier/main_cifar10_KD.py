@@ -77,16 +77,16 @@ def main(args):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
 
-      x_hat_s, resnet_features_s = student(x_imgs)
-      x_hat_t, resnet_features_t = teacher(x_imgs)
+      x_hat_s_train, resnet_features_s_train = student(x_imgs)
+      x_hat_t_train, resnet_features_t_train = teacher(x_imgs)
 
-      pred_labels_s = torch.argmax(x_hat_s, dim=1)
+      pred_labels_s = torch.argmax(x_hat_s_train, dim=1)
 
-      loss_deco = CE_LOSS(x_hat_s, x_labels)
+      loss_deco = CE_LOSS(x_hat_s_train, x_labels)
 
       loss_optics = kd_rb_spc(
-                  pred_teacher=x_hat_t,
-                  pred_student=x_hat_s,
+                  pred_teacher=x_hat_t_train,
+                  pred_student=x_hat_s_train,
                   loss_type=args.loss_response,
                   ca_s=student.system_layer.H,
                   ca_t=teacher.system_layer.H
@@ -94,9 +94,9 @@ def main(args):
 
   #     loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
-      soft_targets = nn.functional.log_softmax(x_hat_t / args.temperature, dim=-1)
-      soft_prob = nn.functional.log_softmax(x_hat_s / args.temperature, dim=-1)
-      loss_kl = kl_div_loss(soft_prob, soft_targets)
+      soft_targets_train = nn.functional.log_softmax(x_hat_t_train / args.temperature, dim=-1)
+      soft_prob_train = nn.functional.log_softmax(x_hat_s_train / args.temperature, dim=-1)
+      loss_kl = kl_div_loss(soft_prob_train, soft_targets_train)
 
       loss_train = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)   
 
@@ -130,15 +130,15 @@ def main(args):
         x_imgs = x_imgs.to(device)
         x_labels = x_labels.to(device)
 
-        x_hat_s, resnet_features_s = student(x_imgs)
-        x_hat_t, resnet_features_t = teacher(x_imgs)
+        x_hat_s_val, resnet_features_s_val = student(x_imgs)
+        x_hat_t_val, resnet_features_t_val = teacher(x_imgs)
 
-        pred_labels_s = torch.argmax(x_hat_s, dim=1)
-        loss_deco = CE_LOSS(x_hat_s, x_labels)
+        pred_labels_s = torch.argmax(x_hat_s_val, dim=1)
+        loss_deco = CE_LOSS(x_hat_s_val, x_labels)
 
         loss_optics = kd_rb_spc(
-                  pred_teacher=x_hat_t,
-                  pred_student=x_hat_s,
+                  pred_teacher=x_hat_t_val,
+                  pred_student=x_hat_s_val,
                   loss_type=args.loss_response,
                   ca_s=student.system_layer.H,
                   ca_t=teacher.system_layer.H
@@ -146,9 +146,9 @@ def main(args):
 
   #       loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
-        soft_targets = nn.functional.log_softmax(x_hat_t / args.temperature, dim=-1)
-        soft_prob = nn.functional.log_softmax(x_hat_s / args.temperature, dim=-1)
-        loss_kl = kl_div_loss(soft_prob, soft_targets)
+        soft_targets_val = nn.functional.log_softmax(x_hat_t_val / args.temperature, dim=-1)
+        soft_prob_val = nn.functional.log_softmax(x_hat_s_val / args.temperature, dim=-1)
+        loss_kl = kl_div_loss(soft_prob_val, soft_targets_val)
 
         loss_val = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)    
 
@@ -185,7 +185,16 @@ def main(args):
                 "val_optics_loss": val_optics_loss.avg,
                 "val_kl_loss": val_kl_loss.avg,
                 "val_deco_loss": val_deco_loss.avg,
-                "coded_aperture": images if epoch % 20 == 0 else None})
+                "coded_aperture": images if epoch % 20 == 0 else None,
+                "logits_s_train": wandb.Histogram(x_hat_s_train) if epoch % 10 == 0 else None,
+                "logits_t_train": wandb.Histogram(x_hat_t_train) if epoch % 10 == 0 else None,
+                "logits_s_val": wandb.Histogram(x_hat_s_val) if epoch % 10 == 0 else None,
+                "logits_t_val": wandb.Histogram(x_hat_t_val) if epoch % 10 == 0 else None,
+                "probs_s_train": wandb.Histogram(soft_prob_train) if epoch % 10 == 0 else None,
+                "probs_t_train": wandb.Histogram(soft_targets_train) if epoch % 10 == 0 else None,
+                "probs_s_val": wandb.Histogram(soft_prob_val) if epoch % 10 == 0 else None,
+                "probs_t_val": wandb.Histogram(soft_targets_val) if epoch % 10 == 0 else None})
+
 
   test_loss = AverageMeter()
   test_acc = AverageMeter()
@@ -211,15 +220,15 @@ def main(args):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
 
-      x_hat_s, resnet_features_s = student(x_imgs)
-      x_hat_t, resnet_features_t = teacher(x_imgs)
+      x_hat_s_test, resnet_features_s_test = student(x_imgs)
+      x_hat_t_test, resnet_features_t_test = teacher(x_imgs)
 
-      pred_labels_s = torch.argmax(x_hat_s, dim=1)
-      loss_deco = CE_LOSS(x_hat_s, x_labels)
+      pred_labels_s = torch.argmax(x_hat_s_test, dim=1)
+      loss_deco = CE_LOSS(x_hat_s_test, x_labels)
 
       loss_optics = kd_rb_spc(
-                  pred_teacher=x_hat_t,
-                  pred_student=x_hat_s,
+                  pred_teacher=x_hat_t_test,
+                  pred_student=x_hat_s_test,
                   loss_type=args.loss_response,
                   ca_s=student.system_layer.H,
                   ca_t=teacher.system_layer.H
@@ -227,9 +236,9 @@ def main(args):
 
   #     loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
-      soft_targets = nn.functional.log_softmax(x_hat_t / args.temperature, dim=-1)
-      soft_prob = nn.functional.log_softmax(x_hat_s / args.temperature, dim=-1)
-      loss_kl = kl_div_loss(soft_prob, soft_targets)
+      soft_targets_test = nn.functional.log_softmax(x_hat_t_test / args.temperature, dim=-1)
+      soft_prob_test = nn.functional.log_softmax(x_hat_s_test / args.temperature, dim=-1)
+      loss_kl = kl_div_loss(soft_prob_test, soft_targets_test)
 
       loss_test = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)    
 
@@ -248,7 +257,11 @@ def main(args):
               # "test_labels_loss": test_labels_loss.avg,
               "test_optics_loss": test_optics_loss.avg,
               "test_kl_loss": test_kl_loss.avg,
-              "test_deco_loss": test_deco_loss.avg})
+              "test_deco_loss": test_deco_loss.avg,
+              "logits_s_test": wandb.Histogram(x_hat_s_test) if epoch % 10 == 0 else None,
+              "logits_t_test": wandb.Histogram(x_hat_t_test) if epoch % 10 == 0 else None,
+              "probs_s_test": wandb.Histogram(soft_prob_test) if epoch % 10 == 0 else None,
+              "probs_t_test": wandb.Histogram(soft_targets_test) if epoch % 10 == 0 else None})
 
   wandb.finish()
 
