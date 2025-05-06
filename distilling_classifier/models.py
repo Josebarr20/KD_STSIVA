@@ -15,9 +15,9 @@ class CI_model(nn.Module):
         self.net = ResNet18(num_channels=input_size[0],num_classes=10)
 
     def forward(self, x):
-        x = self.system_layer(x)
-        x = self.net(x)
-        return x    
+        y = self.system_layer(x)
+        x, resnet_features = self.net(y)
+        return y, x, resnet_features
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -84,8 +84,8 @@ def ResNet18(num_channels=3, num_classes=10):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, num_channels=num_channels)
     
 # if __name__ == "__main__":
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # img = torch.randn(32, 3, 32, 32).to(device)
-    # model = CI_model(input_size=(3, 32, 32), snapshots=100, real="False").to(device)
-    # out = model(img)
-    # print(out.size())
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     img = torch.randn(32, 3, 32, 32).to(device)
+#     model = CI_model(input_size=(3, 32, 32), snapshots=100, real="False").to(device)
+#     out = model(img)
+#     print(out.shape)
