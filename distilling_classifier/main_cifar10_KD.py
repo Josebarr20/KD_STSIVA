@@ -146,26 +146,21 @@ def main(args):
         x_imgs = x_imgs.to(device)
         x_labels = x_labels.to(device)
 
-        ys_val, x_hat_s_val, resnet_features_s_val = student(x_imgs)
+        ys_val, x_hat_s_val, resnet_features_s_val  = student(x_imgs)
         yt_val, x_hat_t_val, resnet_features_t_val = teacher(x_imgs)
 
-        comp_student_val = pca_model.fit_transform(student.system_layer.H)
-        comp_teacher_val = pca_model.fit_transform(teacher.system_layer.H)
+        ys_mean = ys_val.mean(dim=-1, keepdim=True).squeeze()
+        yt_mean = yt_val.mean(dim=-1, keepdim=True).squeeze()
+
+        comp_student_val = pca_model.fit_transform(ys_mean, determinist=False)
+        comp_teacher_val = pca_model.fit_transform(yt_mean, determinist=False)
 
         pred_labels_s = torch.argmax(x_hat_s_val, dim=1)
         loss_deco = CE_LOSS(x_hat_s_val, x_labels)
 
-        # loss_optics = kd_rb_spc(
-        #           pred_teacher=x_hat_t_val,
-        #           pred_student=x_hat_s_val,
-        #           loss_type=args.loss_response,
-        #           ca_s=student.system_layer.H,
-        #           ca_t=teacher.system_layer.H
-        #           )
-
-        # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
-
+        target = torch.ones(comp_student_val.shape[0]).to(device)
         loss_pca = PCA_LOSS(comp_student_val, comp_teacher_val, target)
+
         soft_targets_val = nn.functional.log_softmax(x_hat_t_val / args.temperature, dim=-1)
         soft_prob_val = nn.functional.log_softmax(x_hat_s_val / args.temperature, dim=-1)
         loss_kl = kl_div_loss(soft_prob_val, soft_targets_val)
@@ -234,7 +229,7 @@ def main(args):
           snapshots=int(args.SPC_portion_st * 32 * 32),
           real=args.real_st).to(device) # True for real, False for binary
   
-  pca_model = PCA(128, svd_solver='full')
+  #pca_model = PCA(128, svd_solver='full')
 
   student.load_state_dict(torch.load(f"{model_path}/model.pth"))
 
@@ -246,27 +241,20 @@ def main(args):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
 
-      ys_test, x_hat_s_test, resnet_features_s_test = student(x_imgs)
+      ys_test, x_hat_s_test, resnet_features_s_test  = student(x_imgs)
       yt_test, x_hat_t_test, resnet_features_t_test = teacher(x_imgs)
 
-      comp_student_test = pca_model.fit_transform(student.system_layer.H)
-      comp_teacher_test = pca_model.fit_transform(teacher.system_layer.H)
+      ys_mean = ys_test.mean(dim=-1, keepdim=True).squeeze()
+      yt_mean = yt_test.mean(dim=-1, keepdim=True).squeeze()
+
+      comp_student_test = pca_model.fit_transform(ys_mean, determinist=False)
+      comp_teacher_test = pca_model.fit_transform(yt_mean, determinist=False)
 
       pred_labels_s = torch.argmax(x_hat_s_test, dim=1)
       loss_deco = CE_LOSS(x_hat_s_test, x_labels)
 
-      # loss_optics = kd_rb_spc(
-      #             pred_teacher=x_hat_t_test,
-      #             pred_student=x_hat_s_test,
-      #             loss_type=args.loss_response,
-      #             ca_s=student.system_layer.H,
-      #             ca_t=teacher.system_layer.H
-      #             )
-
-      # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
-
+      target = torch.ones(comp_student_test.shape[0]).to(device)
       loss_pca = PCA_LOSS(comp_student_test, comp_teacher_test, target)
-
       soft_targets_test = nn.functional.log_softmax(x_hat_t_test / args.temperature, dim=-1)
       soft_prob_test = nn.functional.log_softmax(x_hat_s_test / args.temperature, dim=-1)
       loss_kl = kl_div_loss(soft_prob_test, soft_targets_test)
