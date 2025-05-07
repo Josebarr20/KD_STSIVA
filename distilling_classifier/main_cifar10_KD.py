@@ -2,6 +2,7 @@ import argparse
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torchmetrics.classification import Accuracy
 import matplotlib.pyplot as plt
@@ -10,12 +11,12 @@ import wandb
 from models import CI_model
 from utils import *
 from kd_loss import *
+from torch_pca import PCA
 
 def main(args):
   set_seed(args.seed)
 
-  # path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda3}"
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_lossr_{args.loss_response}_T_{args.temperature}_l1_{args.lambda1}_l3_{args.lambda3}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_l3_{args.lambda3}"
 
   args.save_path = args.save_path + path_name
 
@@ -39,6 +40,7 @@ def main(args):
   CE_LOSS = nn.CrossEntropyLoss()
   # CORR_LOSS = Correlation(batch_size=batch_size).to(device)
   kl_div_loss = nn.KLDivLoss(reduction="batchmean",log_target=True)
+  PCA_LOSS = nn.CosineEmbeddingLoss()
   accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
 
   student = CI_model(input_size=im_size,
@@ -48,6 +50,8 @@ def main(args):
   teacher = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_tchr * 32 * 32),
           real=args.real_tchr).to(device) # True for real, False for binary
+
+  pca_model = PCA(128, svd_solver='full')
 
   teacher.load_state_dict(torch.load(args.teacher_path)) # cada run con sus pesos
 
@@ -69,6 +73,7 @@ def main(args):
 
     # train_labels_loss = AverageMeter()
     # train_optics_loss = AverageMeter()
+    train_pca_loss = AverageMeter()
     train_kl_loss = AverageMeter()
     train_deco_loss = AverageMeter()
 
@@ -80,6 +85,9 @@ def main(args):
 
       ys_train, x_hat_s_train, resnet_features_s_train = student(x_imgs)
       yt_train, x_hat_t_train, resnet_features_t_train = teacher(x_imgs)
+
+      comp_student_train = pca_model.fit_transform(student.system_layer.H)
+      comp_teacher_train = pca_model.fit_transform(teacher.system_layer.H)
 
       pred_labels_s = torch.argmax(x_hat_s_train, dim=1)
 
@@ -95,12 +103,13 @@ def main(args):
 
       # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
+      loss_pca = PCA_LOSS(comp_student_train, comp_teacher_train, target)
+
       soft_targets_train = nn.functional.log_softmax(x_hat_t_train / args.temperature, dim=-1)
       soft_prob_train = nn.functional.log_softmax(x_hat_s_train / args.temperature, dim=-1)
       loss_kl = kl_div_loss(soft_prob_train, soft_targets_train)
 
-      # loss_train = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)
-      loss_train = (args.lambda1*loss_deco + args.lambda3*loss_kl)
+      loss_train = (args.lambda1*loss_deco + args.lambda2*loss_pca + args.lambda3*loss_kl)
 
       optimizer.zero_grad()
       loss_train.backward()
@@ -111,6 +120,7 @@ def main(args):
       # train_optics_loss.update(loss_optics.item())
       train_kl_loss.update(loss_kl.item())
       # train_labels_loss.update(loss_labels.item())
+      train_pca_loss.update(loss_pca.item())
       train_acc.update(accuracy(pred_labels_s, x_labels).item())
       data_loop_train.set_description(f"Epoch: {epoch+1}/{args.num_epochs}")
       data_loop_train.set_postfix(loss=train_loss.avg, acc=train_acc.avg)
@@ -125,6 +135,7 @@ def main(args):
       # val_optics_loss = AverageMeter()
       val_kl_loss = AverageMeter()
       val_deco_loss = AverageMeter()
+      val_pca_loss = AverageMeter()
 
       data_loop_val = tqdm(enumerate(valoader), total=len(valoader), colour="green")
       for _, val_data in data_loop_val:
@@ -134,6 +145,9 @@ def main(args):
 
         ys_val, x_hat_s_val, resnet_features_s_val = student(x_imgs)
         yt_val, x_hat_t_val, resnet_features_t_val = teacher(x_imgs)
+
+        comp_student_val = pca_model.fit_transform(student.system_layer.H)
+        comp_teacher_val = pca_model.fit_transform(teacher.system_layer.H)
 
         pred_labels_s = torch.argmax(x_hat_s_val, dim=1)
         loss_deco = CE_LOSS(x_hat_s_val, x_labels)
@@ -148,19 +162,19 @@ def main(args):
 
         # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
+        loss_pca = PCA_LOSS(comp_student_val, comp_teacher_val, target)
         soft_targets_val = nn.functional.log_softmax(x_hat_t_val / args.temperature, dim=-1)
         soft_prob_val = nn.functional.log_softmax(x_hat_s_val / args.temperature, dim=-1)
         loss_kl = kl_div_loss(soft_prob_val, soft_targets_val)
 
-        # loss_val = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)
-        loss_val = (args.lambda1*loss_deco + args.lambda3*loss_kl)
-
+        loss_val = (args.lambda1*loss_deco + args.lambda2*loss_pca + args.lambda3*loss_kl)
 
         val_loss.update(loss_val.item())
         val_deco_loss.update(loss_deco.item())
         # val_optics_loss.update(loss_optics.item())
         val_kl_loss.update(loss_kl.item())
         # val_labels_loss.update(loss_labels.item())
+        val_pca_loss.update(loss_pca.item())
         val_acc.update(accuracy(pred_labels_s, x_labels).item())
         data_loop_val.set_description(f"Epoch: {epoch+1}/{args.num_epochs}")
         data_loop_val.set_postfix(loss=val_loss.avg, acc=val_acc.avg)
@@ -197,7 +211,9 @@ def main(args):
                 "probs_s_train": wandb.Histogram(soft_prob_train[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
                 "probs_t_train": wandb.Histogram(soft_targets_train[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
                 "probs_s_val": wandb.Histogram(soft_prob_val[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
-                "probs_t_val": wandb.Histogram(soft_targets_val[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None})
+                "probs_t_val": wandb.Histogram(soft_targets_val[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
+                "pca_loss_train": train_pca_loss.avg,
+                "pca_loss_val": val_pca_loss.avg})
 
 
   test_loss = AverageMeter()
@@ -207,12 +223,15 @@ def main(args):
   # test_optics_loss = AverageMeter()
   test_kl_loss = AverageMeter()
   test_deco_loss = AverageMeter()
+  test_pca_loss = AverageMeter()
 
   del student
 
   student = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion_st * 32 * 32),
           real=args.real_st).to(device) # True for real, False for binary
+  
+  pca_model = PCA(128, svd_solver='full')
 
   student.load_state_dict(torch.load(f"{model_path}/model.pth"))
 
@@ -227,6 +246,9 @@ def main(args):
       ys_test, x_hat_s_test, resnet_features_s_test = student(x_imgs)
       yt_test, x_hat_t_test, resnet_features_t_test = teacher(x_imgs)
 
+      comp_student_test = pca_model.fit_transform(student.system_layer.H)
+      comp_teacher_test = pca_model.fit_transform(teacher.system_layer.H)
+
       pred_labels_s = torch.argmax(x_hat_s_test, dim=1)
       loss_deco = CE_LOSS(x_hat_s_test, x_labels)
 
@@ -240,12 +262,13 @@ def main(args):
 
       # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
 
+      loss_pca = PCA_LOSS(comp_student_test, comp_teacher_test, target)
+
       soft_targets_test = nn.functional.log_softmax(x_hat_t_test / args.temperature, dim=-1)
       soft_prob_test = nn.functional.log_softmax(x_hat_s_test / args.temperature, dim=-1)
       loss_kl = kl_div_loss(soft_prob_test, soft_targets_test)
 
-      # loss_test = (args.lambda1*loss_deco + args.lambda2*loss_optics + args.lambda3*loss_kl)
-      loss_test = (args.lambda1*loss_deco + args.lambda3*loss_kl)
+      loss_test = (args.lambda1*loss_deco + args.lambda2*loss_pca + args.lambda3*loss_kl)
 
       test_loss.update(loss_test.item())
       test_deco_loss.update(loss_deco.item())
@@ -262,7 +285,8 @@ def main(args):
               # "test_labels_loss": test_labels_loss.avg,
               # "test_optics_loss": test_optics_loss.avg,
               "test_kl_loss": test_kl_loss.avg,
-              "test_deco_loss": test_deco_loss.avg})
+              "test_deco_loss": test_deco_loss.avg,
+              "test_pca_loss": test_pca_loss.avg})
 
   wandb.finish()
 
@@ -280,8 +304,7 @@ if __name__ == "__main__":
     parser.add_argument("--SPC_portion_st", type=float, default=0.1)
     parser.add_argument("--dataset", type=str, default="CIFAR10")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--loss_response", type=str, default="gram")
-    parser.add_argument("--temperature", type=int, default=1)
+    parser.add_argument("--temperature", type=int, default=4)
     parser.add_argument("--lambda1", type=float, default=1.0)
     parser.add_argument("--lambda2", type=float, default=1.0)
     parser.add_argument("--lambda3", type=float, default=1.0)

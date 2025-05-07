@@ -76,7 +76,7 @@ class SPC(nn.Module):
     def forward(self, x: torch.Tensor) -> torch:
         y = forward_spc(x, self.H if self.real == "True" else BinaryQuantize_1.apply(self.H))
         x_hat = backward_spc(y, self.H if self.real == "True" else BinaryQuantize_1.apply(self.H), self.pinv)
-        return x_hat
+        return y, x_hat
 
     def get_coded_aperture(self):
         h = self.H.reshape(self.num_measurements, 1, *self.img_size)

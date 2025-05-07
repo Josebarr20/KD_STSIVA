@@ -15,9 +15,9 @@ class CI_model(nn.Module):
         self.net = ResNet18(num_channels=input_size[0],num_classes=10)
 
     def forward(self, x):
-        y = self.system_layer(x)
-        x, resnet_features = self.net(y)
-        return y, x, resnet_features
+        y, x_hat = self.system_layer(x)
+        x_hat, resnet_features = self.net(x_hat)
+        return y, x_hat, resnet_features
 
 class BasicBlock(nn.Module):
     expansion = 1
