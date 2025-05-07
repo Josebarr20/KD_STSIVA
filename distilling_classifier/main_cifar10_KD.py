@@ -195,12 +195,12 @@ def main(args):
                 "val_acc": val_acc.avg,
                 # "train_labels_loss": train_labels_loss.avg,
                 # "train_optics_loss": train_optics_loss.avg,
-                "train_kl_loss": args.lambda3*train_kl_loss.avg,
-                "train_deco_loss": args.lambda1*train_deco_loss.avg,
+                "train_kl_loss": train_kl_loss.avg,
+                "train_deco_loss": train_deco_loss.avg,
                 # "val_labels_loss": val_labels_loss.avg,
                 # "val_optics_loss": val_optics_loss.avg,
-                "val_kl_loss": args.lambda3*val_kl_loss.avg,
-                "val_deco_loss": args.lambda1*val_deco_loss.avg,
+                "val_kl_loss": val_kl_loss.avg,
+                "val_deco_loss": val_deco_loss.avg,
                 "coded_aperture": images if epoch % 20 == 0 else None,
                 "logits_s_train": wandb.Histogram(x_hat_s_train[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
                 "logits_t_train": wandb.Histogram(x_hat_t_train[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
@@ -210,8 +210,8 @@ def main(args):
                 "probs_t_train": wandb.Histogram(soft_targets_train[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
                 "probs_s_val": wandb.Histogram(soft_prob_val[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
                 "probs_t_val": wandb.Histogram(soft_targets_val[0].detach().cpu().numpy(), num_bins=10) if epoch % 10 == 0 else None,
-                "pca_loss_train": args.lambda2*train_pca_loss.avg,
-                "pca_loss_val": args.lambda2*val_pca_loss.avg})
+                "pca_loss_train": train_pca_loss.avg,
+                "pca_loss_val": val_pca_loss.avg})
 
 
   test_loss = AverageMeter()
@@ -275,9 +275,9 @@ def main(args):
               "best_epoch": best_epoch,
               # "test_labels_loss": test_labels_loss.avg,
               # "test_optics_loss": test_optics_loss.avg,
-              "test_kl_loss": args.lambda3*test_kl_loss.avg,
-              "test_deco_loss": args.lambda1*test_deco_loss.avg,
-              "test_pca_loss": args.lambda2*test_pca_loss.avg})
+              "test_kl_loss": test_kl_loss.avg,
+              "test_deco_loss": test_deco_loss.avg,
+              "test_pca_loss": test_pca_loss.avg})
 
   wandb.finish()
 
