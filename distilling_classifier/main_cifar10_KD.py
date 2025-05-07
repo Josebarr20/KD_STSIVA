@@ -51,7 +51,7 @@ def main(args):
           snapshots=int(args.SPC_portion_tchr * 32 * 32),
           real=args.real_tchr).to(device) # True for real, False for binary
 
-  pca_model = PCA(128, svd_solver='full')
+  pca_model = PCA(50, svd_solver='full')
 
   teacher.load_state_dict(torch.load(args.teacher_path)) # cada run con sus pesos
 
@@ -86,8 +86,11 @@ def main(args):
       ys_train, x_hat_s_train, resnet_features_s_train = student(x_imgs)
       yt_train, x_hat_t_train, resnet_features_t_train = teacher(x_imgs)
 
-      comp_student_train = pca_model.fit_transform(student.system_layer.H)
-      comp_teacher_train = pca_model.fit_transform(teacher.system_layer.H)
+      ys_mean = ys_train.mean(dim=-1, keepdim=True).squeeze()
+      yt_mean = yt_train.mean(dim=-1, keepdim=True).squeeze()
+
+      comp_student_train = pca_model.fit_transform(ys_mean, determinist=False)
+      comp_teacher_train = pca_model.fit_transform(yt_mean, determinist=False)
 
       pred_labels_s = torch.argmax(x_hat_s_train, dim=1)
 
@@ -102,7 +105,7 @@ def main(args):
       #             )
 
       # loss_labels = CORR_LOSS(inputs=(x_hat_s, x_hat_t))
-
+      target = torch.ones(comp_student_train.shape[0]).to(device)
       loss_pca = PCA_LOSS(comp_student_train, comp_teacher_train, target)
 
       soft_targets_train = nn.functional.log_softmax(x_hat_t_train / args.temperature, dim=-1)
@@ -311,7 +314,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--teacher_path",
         type=str,
-        default=r"C:\Users\SERGIOURREA\Desktop\KD_Jose\distilling_classifier\save_model_t\model_binary_100.pth",
+        default=r"save_model_t\model_binary_100.pth",
     )
     parser.add_argument("--save_path", type=str, default="WEIGHTS/SPC_KD_TEST/")
     parser.add_argument("--project_name", type=str, default="KD_LOSSES_TEST")
