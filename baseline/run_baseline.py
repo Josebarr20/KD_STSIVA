@@ -15,17 +15,6 @@ os.chdir("baseline")
 # Confirmar que el cambio fue exitoso
 print("Directorio actual:", os.getcwd())
 
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.1} --type_t {"real"} --real {"True"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.2} --type_t {"real"} --real {"True"}")  
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.4} --type_t {"real"} --real {"True"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.6} --type_t {"real"} --real {"True"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.8} --type_t {"real"} --real {"True"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {1.0} --type_t {"real"} --real {"True"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.1} --type_t {"binary"} --real {"False"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.2} --type_t {"binary"} --real {"False"}")  
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.4} --type_t {"binary"} --real {"False"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.6} --type_t {"binary"} --real {"False"}")
-# os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones 30 50 70 80 --gamma {gamma} --SPC_portion {0.8} --type_t {"binary"} --real {"False"}")
 for milestone in milestones:
     for dropout in dropouts:
         os.system(f"python main_cifar10_base.py --batch_size {batch_size} --num_epochs {num_epochs} --momentum {momentum} --weight_decay {weight_decay} --milestones {milestone} --gamma {gamma} --SPC_portion {0.1} --type_t binary --real False --dropout {dropout}")
