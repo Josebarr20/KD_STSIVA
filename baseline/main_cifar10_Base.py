@@ -154,7 +154,7 @@ if __name__ == "__main__":
     parser.add_argument("--milestones", nargs="+", type=int, default = [30, 50, 70, 80], help="Lista")
     parser.add_argument("--gamma", type=float, default=0.1)   
     parser.add_argument("--SPC_portion", type=float, default=0.2)
-    parser.add_argument("--dataset", type=str, default="CIFAR10")
+    parser.add_argument("--dataset", type=str, default="CIFAR10") 
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--save_path", type=str, default="WEIGHTS/BASELINE_TEST/")
     parser.add_argument("--project_name", type=str, default="Classification_CIFAR10_Baseline_pilot")
