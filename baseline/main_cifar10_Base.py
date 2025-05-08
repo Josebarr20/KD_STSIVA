@@ -13,7 +13,7 @@ from utils import *
 def main(args):
   set_seed(args.seed) 
 
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_cap_{int(args.SPC_portion*100)}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_cap_{int(args.SPC_portion*100)}_dropout_{args.dropout}_type_{args.type_t}_real_{args.real}/"
 
   args.save_path = args.save_path + path_name
 
@@ -39,7 +39,7 @@ def main(args):
 
   model = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion * 32 * 32),
-          real=args.real).to(device) # True for real, False for binary
+          real=args.real, dropout_rate=args.dropout).to(device) # True for real, False for binary
 
   optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
   scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
@@ -118,7 +118,7 @@ def main(args):
 
   model = CI_model(input_size=im_size,
           snapshots=int(args.SPC_portion * 32 * 32),
-          real=args.real).to(device) # True for real, False for binary
+          real=args.real, dropout_rate = args.dropout).to(device) # True for real, False for binary
 
   model.load_state_dict(torch.load(f"{model_path}/model_{args.type_t}_{int(args.SPC_portion*100)}.pth"))
 
@@ -157,9 +157,10 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="CIFAR10")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--save_path", type=str, default="WEIGHTS/BASELINE_TEST/")
-    parser.add_argument("--project_name", type=str, default="Classification_CIFAR10_Baseline")
+    parser.add_argument("--project_name", type=str, default="Classification_CIFAR10_Baseline_pilot")
     parser.add_argument("--type_t", type=str, default="real")
     parser.add_argument("--real", type=str, default="True") # True for real, False for binary
+    parser.add_argument("--dropout", type=float, default=0.2)
 
     args = parser.parse_args()
     print(args)
