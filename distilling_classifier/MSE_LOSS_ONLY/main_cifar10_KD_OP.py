@@ -14,7 +14,7 @@ from utils import *
 def main(args):
   set_seed(args.seed)
 
-  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_T_{args.temperature}_l1_{args.lambda1}_l2_{args.lambda2}_dropout_{args.dropout}"
+  path_name = f"lr_{args.lr}_b_{args.batch_size}_e_{args.num_epochs}_momentum_{args.momentum}_wd_{args.weight_decay}_milestone_{args.milestones}_gamma_{args.gamma}_snap_t_{int(args.SPC_portion_tchr*100)}_snap_s_{int(args.SPC_portion_st*100)}_ds_{args.dataset}_sd_{args.seed}_l1_{args.lambda1}_l2_{args.lambda2}_dropout_{args.dropout}"
 
 
   args.save_path = args.save_path + path_name
