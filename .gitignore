@@ -8,3 +8,4 @@
 /distilling_classifier/wandb
 /distilling_classifier/__pycache__
 /distilling_classifier/data
+/baseline/wandb
