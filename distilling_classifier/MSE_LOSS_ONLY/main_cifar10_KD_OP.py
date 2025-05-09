@@ -75,14 +75,14 @@ def main(args):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
 
-      ys_train, x_hat_s_train, resnet_features_s_train = student(x_imgs)
-      yt_train, x_hat_t_train, resnet_features_t_train = teacher(x_imgs)
+      ys_train, x_hat_s_train, resnet_features_s_train, HTt = student(x_imgs)
+      yt_train, x_hat_t_train, resnet_features_t_train, HTs = teacher(x_imgs)
 
       pred_labels_s = torch.argmax(x_hat_s_train, dim=1)
 
       loss_deco = CE_LOSS(x_hat_s_train, x_labels)
 
-      loss_mse = MSE(x_hat_s_train, x_hat_t_train)
+      loss_mse = MSE(HTt, HTs)
 
       loss_train = (args.lambda1*loss_deco + args.lambda2*loss_mse)
 
@@ -112,13 +112,13 @@ def main(args):
         x_imgs = x_imgs.to(device)
         x_labels = x_labels.to(device)
 
-        ys_val, x_hat_s_val, resnet_features_s_val  = student(x_imgs)
-        yt_val, x_hat_t_val, resnet_features_t_val = teacher(x_imgs)
+        ys_val, x_hat_s_val, resnet_features_s_val, HTt  = student(x_imgs)
+        yt_val, x_hat_t_val, resnet_features_t_val, HTs = teacher(x_imgs)
 
         pred_labels_s = torch.argmax(x_hat_s_val, dim=1)
         loss_deco = CE_LOSS(x_hat_s_val, x_labels)
 
-        loss_mse = MSE(x_hat_s_val, x_hat_t_val)
+        loss_mse = MSE(HTt, HTs)
 
         loss_val = (args.lambda1*loss_deco + args.lambda2*loss_mse)
 
@@ -178,13 +178,13 @@ def main(args):
       x_imgs = x_imgs.to(device)
       x_labels = x_labels.to(device)
 
-      ys_test, x_hat_s_test, resnet_features_s_test  = student(x_imgs)
-      yt_test, x_hat_t_test, resnet_features_t_test = teacher(x_imgs)
+      ys_test, x_hat_s_test, resnet_features_s_test, HTt = student(x_imgs)
+      yt_test, x_hat_t_test, resnet_features_t_test, HTs = teacher(x_imgs)
 
       pred_labels_s = torch.argmax(x_hat_s_test, dim=1)
       loss_deco = CE_LOSS(x_hat_s_test, x_labels)
 
-      loss_mse = MSE(x_hat_s_test, x_hat_t_test)
+      loss_mse = MSE(HTt, HTs)
 
       loss_test = (args.lambda1*loss_deco + args.lambda2*loss_mse)
       test_loss.update(loss_test.item())
@@ -211,16 +211,16 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", type=float, default=5e-4)
     parser.add_argument("--milestones", nargs="+", type=int, default = [20, 40], help="Lista")
     parser.add_argument("--gamma", type=float, default=0.1)
-    parser.add_argument("--SPC_portion_tchr", type=float, default=1)
+    parser.add_argument("--SPC_portion_tchr", type=float, default=0.2)
     parser.add_argument("--SPC_portion_st", type=float, default=0.1)
     parser.add_argument("--dataset", type=str, default="CIFAR10")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lambda1", type=float, default=1.0)
-    parser.add_argument("--lambda2", type=float, default=1.0)
+    parser.add_argument("--lambda2", type=float, default=0.75)
     parser.add_argument(
         "--teacher_path",
         type=str,
-        default=r"save_model_t\model_binary_100.pth",
+        default=r"save_model_t\model_binary_20.pth",
     )
     parser.add_argument("--save_path", type=str, default="WEIGHTS/SPC_KD_TEST/")
     parser.add_argument("--project_name", type=str, default="KD_MSE_TEST")
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     parser.add_argument("--real_tchr", type=str, default="False") # True for real, False for binary
     parser.add_argument("--dropout", type=float, default=0.4)
 
-
+    os.chdir("distilling_classifier/MSE_LOSS_ONLY")
     args = parser.parse_args()
     print(args)
     main(args)

@@ -1,10 +1,10 @@
 import os
 os.chdir("distilling_classifier/MSE_LOSS_ONLY")
 
-lambda2 = [0.25, 0.5, 0.75, 1] 
+lambda2 = [0.75] 
 lambda1 = 1
-students = [0.05, 0.1]
-teachers = [0.2, 0.4]
+students = [0.1]
+teachers = [0.2]
 epochs = 50
 for st in students:
     for t in teachers:
